@@ -6,7 +6,18 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
-@CapacitorPlugin(name = "DatecsPrinter")
+@CapacitorPlugin(
+    name = "DatecsPrinter",
+    permissions = {
+        @Permission(strings = {
+            android.Manifest.permission.BLUETOOTH,
+            android.Manifest.permission.BLUETOOTH_ADMIN,
+            android.Manifest.permission.BLUETOOTH_SCAN,
+            android.Manifest.permission.BLUETOOTH_CONNECT,
+            android.Manifest.permission.NEARBY_WIFI_DEVICES // optional, Android 13+
+        }, alias = "bluetooth")
+    }
+)
 public class DatecsPrinterPlugin extends Plugin {
 
     private DatecsSDKWrapper printer;
@@ -18,11 +29,24 @@ public class DatecsPrinterPlugin extends Plugin {
 
     @PluginMethod
     public void listBluetoothDevices(PluginCall call) {
+
+        if (!hasPermission("bluetooth")) {
+            requestPermissionForAlias("bluetooth", call, "listBluetoothDevices");
+            return;
+        }
+    
+
         printer.getBluetoothPairedDevices(call);
     }
 
     @PluginMethod
     public void connect(PluginCall call) {
+
+        if (!hasPermission("bluetooth")) {
+            requestPermissionForAlias("bluetooth", call, "connect");
+            return;
+        }
+
         String address = call.getString("address");
         if (address != null) {
             printer.setAddress(address);
