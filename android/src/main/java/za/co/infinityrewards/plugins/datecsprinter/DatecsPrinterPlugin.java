@@ -1,19 +1,20 @@
 package za.co.infinityrewards.plugins.datecsprinter;
 
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 @CapacitorPlugin(name = "DatecsPrinter", permissions = {
         @Permission(strings = {
-                android.Manifest.permission.BLUETOOTH,
-                android.Manifest.permission.BLUETOOTH_ADMIN,
+//                android.Manifest.permission.BLUETOOTH,
+//                android.Manifest.permission.BLUETOOTH_ADMIN,
                 android.Manifest.permission.BLUETOOTH_SCAN,
                 android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.NEARBY_WIFI_DEVICES // optional, Android 13+
         }, alias = "bluetooth")
 })
 public class DatecsPrinterPlugin extends Plugin {
@@ -28,7 +29,7 @@ public class DatecsPrinterPlugin extends Plugin {
     @PluginMethod
     public void listBluetoothDevices(PluginCall call) {
         if (!hasPermission("bluetooth")) {
-            requestPermissionForAlias("bluetooth", call, "listBluetoothDevices");
+            requestPermissionForAlias("bluetooth", call, "listBluetoothDevicesCallback");
             return;
         }
 
@@ -36,7 +37,7 @@ public class DatecsPrinterPlugin extends Plugin {
     }
 
     @PermissionCallback
-    private void listBluetoothDevices(PluginCall call) {
+    private void listBluetoothDevicesCallback(PluginCall call) {
         if (getPermissionState("bluetooth") == PermissionState.GRANTED) {
             printer.getBluetoothPairedDevices(call);
         } else {
@@ -48,7 +49,7 @@ public class DatecsPrinterPlugin extends Plugin {
     public void connect(PluginCall call) {
 
         if (!hasPermission("bluetooth")) {
-            requestPermissionForAlias("bluetooth", call, "connect");
+            requestPermissionForAlias("bluetooth", call, "connectCallback");
             return;
         }
 
@@ -62,7 +63,7 @@ public class DatecsPrinterPlugin extends Plugin {
     }
 
     @PermissionCallback
-    private void connect(PluginCall call) {
+    private void connectCallback(PluginCall call) {
         if (getPermissionState("bluetooth") == PermissionState.GRANTED) {
             String address = call.getString("address");
             if (address != null) {
