@@ -1,6 +1,6 @@
 # capacitor-plugin-datecs-printer
 
-Capacitor port of [cordova-plugin-datecs-printer](https://github.com/giorgiofellipe/cordova-plugin-datecs-printer/tree/master)
+Capacitor port of [cordova-plugin-datecs-printer](https://github.com/giorgiofellipe/cordova-plugin-datecs-printer/tree/master) (android only).
 
 ## Install
 
