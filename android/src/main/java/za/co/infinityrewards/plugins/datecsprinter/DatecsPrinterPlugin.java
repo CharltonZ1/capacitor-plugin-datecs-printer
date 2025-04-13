@@ -5,19 +5,17 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
 
-@CapacitorPlugin(
-    name = "DatecsPrinter",
-    permissions = {
+@CapacitorPlugin(name = "DatecsPrinter", permissions = {
         @Permission(strings = {
-            android.Manifest.permission.BLUETOOTH,
-            android.Manifest.permission.BLUETOOTH_ADMIN,
-            android.Manifest.permission.BLUETOOTH_SCAN,
-            android.Manifest.permission.BLUETOOTH_CONNECT,
-            android.Manifest.permission.NEARBY_WIFI_DEVICES // optional, Android 13+
+                android.Manifest.permission.BLUETOOTH,
+                android.Manifest.permission.BLUETOOTH_ADMIN,
+                android.Manifest.permission.BLUETOOTH_SCAN,
+                android.Manifest.permission.BLUETOOTH_CONNECT,
+                android.Manifest.permission.NEARBY_WIFI_DEVICES // optional, Android 13+
         }, alias = "bluetooth")
-    }
-)
+})
 public class DatecsPrinterPlugin extends Plugin {
 
     private DatecsSDKWrapper printer;
@@ -29,14 +27,21 @@ public class DatecsPrinterPlugin extends Plugin {
 
     @PluginMethod
     public void listBluetoothDevices(PluginCall call) {
-
         if (!hasPermission("bluetooth")) {
             requestPermissionForAlias("bluetooth", call, "listBluetoothDevices");
             return;
         }
-    
 
         printer.getBluetoothPairedDevices(call);
+    }
+
+    @PermissionCallback
+    private void listBluetoothDevices(PluginCall call) {
+        if (getPermissionState("bluetooth") == PermissionState.GRANTED) {
+            printer.getBluetoothPairedDevices(call);
+        } else {
+            call.reject("Bluetooth permission not granted");
+        }
     }
 
     @PluginMethod
@@ -53,6 +58,21 @@ public class DatecsPrinterPlugin extends Plugin {
             printer.connect(call);
         } else {
             call.reject("Address is required");
+        }
+    }
+
+    @PermissionCallback
+    private void connect(PluginCall call) {
+        if (getPermissionState("bluetooth") == PermissionState.GRANTED) {
+            String address = call.getString("address");
+            if (address != null) {
+                printer.setAddress(address);
+                printer.connect(call);
+            } else {
+                call.reject("Address is required");
+            }
+        } else {
+            call.reject("Bluetooth permission not granted");
         }
     }
 
@@ -207,5 +227,10 @@ public class DatecsPrinterPlugin extends Plugin {
         } else {
             call.reject("Image data is required");
         }
+    }
+
+    @PluginMethod
+    public void disconnect(PluginCall call) {
+        printer.disconnect(call);
     }
 }

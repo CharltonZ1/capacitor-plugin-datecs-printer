@@ -510,4 +510,9 @@ public class DatecsSDKWrapper {
     private void showToast(final String text) {
         Log.d(LOG_TAG, text);
     }
+
+    public void disconnect(PluginCall call) {
+        closeActiveConnections();
+        call.resolve();
+    }
 }
