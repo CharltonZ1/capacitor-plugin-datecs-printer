@@ -1,13 +1,12 @@
 package za.co.infinityrewards.plugins.datecsprinter;
 
-import android.app.Application;
 import android.app.Activity;
+import android.app.Application;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
 import android.util.Log;
-import android.widget.Toast;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Base64;
@@ -15,7 +14,6 @@ import android.util.Base64;
 import com.datecs.api.printer.ProtocolAdapter;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.JSObject;
-
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,21 +32,15 @@ public class DatecsSDKWrapper {
     private Printer mPrinter;
     private ProtocolAdapter mProtocolAdapter;
     private BluetoothSocket mBluetoothSocket;
-    private boolean mRestart;
     private String mAddress;
     private PluginCall mConnectCallback;
-    private PluginCall mCallback;
     private final Application app;
     private Activity activity;
 
     private final ProtocolAdapter.PrinterListener mChannelListener = new ProtocolAdapter.PrinterListener() {
         @Override
         public void onPaperStateChanged(boolean hasNoPaper) {
-            if (hasNoPaper) {
-                showToast(DatecsUtil.getStringFromStringResource(app, "no_paper"));
-            } else {
-                showToast(DatecsUtil.getStringFromStringResource(app, "paper_ok"));
-            }
+            showToast(hasNoPaper ? DatecsUtil.getStringFromStringResource(app, "no_paper") : DatecsUtil.getStringFromStringResource(app, "paper_ok"));
         }
 
         @Override
@@ -107,7 +99,7 @@ public class DatecsSDKWrapper {
                 json.put("exception", exception.getMessage());
             }
         } catch (Exception e) {
-            Log.e(LOG_TAG, e.getMessage());
+            Log.e(LOG_TAG, "Error creating error JSON", e);
             showToast(e.getMessage());
         }
         return json;
@@ -118,10 +110,12 @@ public class DatecsSDKWrapper {
         try {
             mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
             if (mBluetoothAdapter == null) {
+                Log.e(LOG_TAG, "No Bluetooth adapter found");
                 call.reject(errorCode.get(1), "1");
                 return;
             }
             if (!mBluetoothAdapter.isEnabled()) {
+                Log.d(LOG_TAG, "Bluetooth not enabled, requesting enable");
                 Intent enableBluetooth = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                 activity.startActivityForResult(enableBluetooth, 0);
             }
@@ -137,11 +131,12 @@ public class DatecsSDKWrapper {
                             deviceType = (Integer) method.invoke(device);
                         }
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        Log.e(LOG_TAG, "Error getting device type", e);
                     }
                     map.put("type", deviceType);
                     map.put("address", device.getAddress());
-                    map.put("name", device.getName());
+                    map.put("id", device.getAddress()); // Added for compatibility
+                    map.put("name", device.getName() != null ? device.getName() : "Unknown");
                     String deviceAlias = device.getName();
                     try {
                         java.lang.reflect.Method method = device.getClass().getMethod("getAliasName");
@@ -149,41 +144,48 @@ public class DatecsSDKWrapper {
                             deviceAlias = (String) method.invoke(device);
                         }
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        Log.e(LOG_TAG, "Error getting device alias", e);
                     }
-                    map.put("aliasName", deviceAlias);
+                    map.put("aliasName", deviceAlias != null ? deviceAlias : "Unknown");
                     JSONObject jObj = new JSONObject(map);
+                    Log.d(LOG_TAG, "Device: " + jObj.toString());
                     json.put(jObj);
                 }
-                call.resolve(new JSObject().put("devices", json));
+                JSObject result = new JSObject();
+                result.put("devices", json);
+                Log.d(LOG_TAG, "Devices found: " + json.toString());
+                call.resolve(result);
             } else {
+                Log.e(LOG_TAG, "No paired Bluetooth devices found");
                 call.reject(errorCode.get(2), "2");
             }
+        } catch (SecurityException e) {
+            Log.e(LOG_TAG, "Bluetooth permission error", e);
+            call.reject("Bluetooth permission not granted");
         } catch (Exception e) {
-            Log.e(LOG_TAG, e.getMessage());
-            e.printStackTrace();
+            Log.e(LOG_TAG, "Error listing devices", e);
             call.reject(e.getMessage());
         }
     }
 
     public void setAddress(String address) {
         mAddress = address;
+        Log.d(LOG_TAG, "Set Bluetooth address: " + address);
     }
 
     public void setWebView(Object webView) {
         // Capacitor doesn't need this, but keep for compatibility
     }
 
-    public void setCallbackContext(PluginCall callback) {
-        mCallback = callback;
-    }
-
     public void connect(PluginCall call) {
         mConnectCallback = call;
-        closeActiveConnections();
-        if (BluetoothAdapter.checkBluetoothAddress(mAddress)) {
-            establishBluetoothConnection(mAddress, call);
+        if (mAddress == null || !BluetoothAdapter.checkBluetoothAddress(mAddress)) {
+            Log.e(LOG_TAG, "Invalid or missing Bluetooth address");
+            call.reject("Invalid or missing Bluetooth address", "18");
+            return;
         }
+        closeActiveConnections();
+        establishBluetoothConnection(mAddress, call);
     }
 
     public synchronized void closeActiveConnections() {
@@ -193,10 +195,22 @@ public class DatecsSDKWrapper {
 
     private synchronized void closePrinterConnection() {
         if (mPrinter != null) {
-            mPrinter.close();
+            try {
+                mPrinter.close();
+                Log.d(LOG_TAG, "Printer connection closed");
+            } catch (Exception e) {
+                Log.e(LOG_TAG, "Error closing printer connection", e);
+            }
+            mPrinter = null;
         }
         if (mProtocolAdapter != null) {
-            mProtocolAdapter.close();
+            try {
+                mProtocolAdapter.close();
+                Log.d(LOG_TAG, "Protocol adapter closed");
+            } catch (Exception e) {
+                Log.e(LOG_TAG, "Error closing protocol adapter", e);
+            }
+            mProtocolAdapter = null;
         }
     }
 
@@ -207,19 +221,32 @@ public class DatecsSDKWrapper {
             try {
                 Thread.sleep(50);
                 socket.close();
+                Log.d(LOG_TAG, "Bluetooth socket closed");
             } catch (Exception e) {
-                e.printStackTrace();
+                Log.e(LOG_TAG, "Error closing Bluetooth socket", e);
             }
         }
     }
 
     private void establishBluetoothConnection(final String address, final PluginCall call) {
-        final DatecsSDKWrapper sdk = this;
         runJob(new Runnable() {
             @Override
             public void run() {
                 BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-                BluetoothDevice device = adapter.getRemoteDevice(address);
+                if (adapter == null) {
+                    Log.e(LOG_TAG, "No Bluetooth adapter found");
+                    call.reject(errorCode.get(1), "1");
+                    return;
+                }
+                BluetoothDevice device;
+                try {
+                    device = adapter.getRemoteDevice(address);
+                    Log.d(LOG_TAG, "Connecting to device: " + device.getName() + " (" + address + ")");
+                } catch (IllegalArgumentException e) {
+                    Log.e(LOG_TAG, "Invalid device address: " + address, e);
+                    call.reject("Invalid device address", "18");
+                    return;
+                }
                 UUID uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
                 InputStream in = null;
                 OutputStream out = null;
@@ -231,21 +258,24 @@ public class DatecsSDKWrapper {
                     mBluetoothSocket.connect();
                     in = mBluetoothSocket.getInputStream();
                     out = mBluetoothSocket.getOutputStream();
+                    Log.d(LOG_TAG, "Bluetooth socket connected");
                 } catch (IOException e) {
+                    Log.e(LOG_TAG, "Primary connection failed, trying fallback", e);
                     try {
                         mBluetoothSocket = (BluetoothSocket) device.getClass().getMethod("createRfcommSocket", new Class[]{int.class}).invoke(device, 1);
                         Thread.sleep(50);
                         mBluetoothSocket.connect();
                         in = mBluetoothSocket.getInputStream();
                         out = mBluetoothSocket.getOutputStream();
+                        Log.d(LOG_TAG, "Fallback Bluetooth socket connected");
                     } catch (Exception ex) {
-                        ex.printStackTrace();
-                        call.reject(errorCode.get(18) + ex.getMessage(), "18");
+                        Log.e(LOG_TAG, "Fallback connection failed", ex);
+                        call.reject(errorCode.get(18) + ": " + ex.getMessage(), "18");
                         return;
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
-                    call.reject(errorCode.get(18) + e.getMessage(), "18");
+                    Log.e(LOG_TAG, "Connection error", e);
+                    call.reject(errorCode.get(18) + ": " + e.getMessage(), "18");
                     return;
                 }
 
@@ -254,9 +284,8 @@ public class DatecsSDKWrapper {
                     showToast(DatecsUtil.getStringFromStringResource(app, "printer_connected"));
                     call.resolve();
                 } catch (IOException e) {
-                    e.printStackTrace();
-                    call.reject(errorCode.get(20), "20");
-                    return;
+                    Log.e(LOG_TAG, "Printer initialization failed", e);
+                    call.reject(errorCode.get(20) + ": " + e.getMessage(), "20");
                 }
             }
         }, DatecsUtil.getStringFromStringResource(app, "printer"), DatecsUtil.getStringFromStringResource(app, "connecting"));
@@ -267,203 +296,290 @@ public class DatecsSDKWrapper {
             java.lang.reflect.Method method = device.getClass().getMethod("createRfcommSocketToServiceRecord", new Class[]{UUID.class});
             return (BluetoothSocket) method.invoke(device, uuid);
         } catch (Exception e) {
-            e.printStackTrace();
-            call.reject(errorCode.get(19), "19");
+            Log.e(LOG_TAG, "Error creating Bluetooth socket", e);
+            call.reject(errorCode.get(19) + ": " + e.getMessage(), "19");
             showError(DatecsUtil.getStringFromStringResource(app, "failed_to_comm") + ": " + e.getMessage(), false);
         }
         return device.createRfcommSocketToServiceRecord(uuid);
     }
 
     protected void initializePrinter(InputStream inputStream, OutputStream outputStream, PluginCall call) throws IOException {
+        Log.d(LOG_TAG, "Initializing printer...");
         mProtocolAdapter = new ProtocolAdapter(inputStream, outputStream);
         if (mProtocolAdapter.isProtocolEnabled()) {
+            Log.d(LOG_TAG, "Protocol enabled, setting printer listener");
             mProtocolAdapter.setPrinterListener(mChannelListener);
             final ProtocolAdapter.Channel channel = mProtocolAdapter.getChannel(ProtocolAdapter.CHANNEL_PRINTER);
             mPrinter = new Printer(channel.getInputStream(), channel.getOutputStream());
         } else {
+            Log.d(LOG_TAG, "Protocol disabled, using raw streams");
             mPrinter = new Printer(mProtocolAdapter.getRawInputStream(), mProtocolAdapter.getRawOutputStream());
         }
 
         mPrinter.setConnectionListener(new Printer.ConnectionListener() {
             @Override
             public void onDisconnect() {
-                // Handle disconnect event if needed
-                // sendStatusUpdate(false);
+                Log.d(LOG_TAG, "Printer disconnected");
+                if (mConnectCallback != null) {
+                    mConnectCallback.reject("Printer disconnected", "18");
+                }
             }
         });
+        Log.d(LOG_TAG, "Printer initialized successfully");
         call.resolve();
     }
 
-    public void feedPaper(int linesQuantity) {
+    public void feedPaper(int linesQuantity, PluginCall call) {
+        if (mPrinter == null) {
+            Log.e(LOG_TAG, "Cannot feed paper: Printer is not initialized");
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
         if (linesQuantity < 0 || linesQuantity > 255) {
-            mCallback.reject(errorCode.get(3), "3");
+            Log.e(LOG_TAG, "Invalid lines quantity: " + linesQuantity);
+            call.reject(errorCode.get(3), "3");
             return;
         }
         try {
             mPrinter.feedPaper(linesQuantity);
             mPrinter.flush();
-            mCallback.resolve();
+            call.resolve();
         } catch (Exception e) {
-            e.printStackTrace();
-            mCallback.reject(errorCode.get(4) + e.getMessage(), "4");
+            Log.e(LOG_TAG, "Error feeding paper", e);
+            call.reject(errorCode.get(4) + ": " + e.getMessage(), "4");
         }
     }
 
-    public void printTaggedText(String text, String charset) {
+    public void printTaggedText(String text, String charset, PluginCall call) {
+        if (mPrinter == null) {
+            Log.e(LOG_TAG, "Cannot print text: Printer is not initialized");
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
         try {
             mPrinter.printTaggedText(text, charset);
             mPrinter.flush();
-            mCallback.resolve();
+            call.resolve();
         } catch (Exception e) {
-            e.printStackTrace();
-            mCallback.reject(errorCode.get(5) + e.getMessage(), "5");
+            Log.e(LOG_TAG, "Error printing text", e);
+            call.reject(errorCode.get(5) + ": " + e.getMessage(), "5");
         }
     }
 
-    public void writeHex(String s) {
-        write(DatecsUtil.hexStringToByteArray(s));
+    public void writeHex(String s, PluginCall call) {
+        write(DatecsUtil.hexStringToByteArray(s), call);
     }
 
-    public void write(byte[] b) {
+    public void write(byte[] b, PluginCall call) {
+        if (mPrinter == null) {
+            Log.e(LOG_TAG, "Cannot write data: Printer is not initialized");
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
         try {
             mPrinter.write(b);
             mPrinter.flush();
-            mCallback.resolve();
+            call.resolve();
         } catch (Exception e) {
-            e.printStackTrace();
-            mCallback.reject(errorCode.get(21) + e.getMessage(), "21");
+            Log.e(LOG_TAG, "Error writing data", e);
+            call.reject(errorCode.get(21) + ": " + e.getMessage(), "21");
         }
     }
 
-    public void getStatus() {
+    public void getStatus(PluginCall call) {
+        if (mPrinter == null) {
+            Log.e(LOG_TAG, "Cannot get status: Printer is not initialized");
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
         try {
             int status = mPrinter.getStatus();
             JSObject ret = new JSObject();
             ret.put("status", status);
-            mCallback.resolve(ret);
+            call.resolve(ret);
         } catch (Exception e) {
-            e.printStackTrace();
-            mCallback.reject(errorCode.get(6) + e.getMessage(), "6");
+            Log.e(LOG_TAG, "Error fetching status", e);
+            call.reject(errorCode.get(6) + ": " + e.getMessage(), "6");
         }
     }
 
-    public void getTemperature() {
+    public void getTemperature(PluginCall call) {
+        if (mPrinter == null) {
+            Log.e(LOG_TAG, "Cannot get temperature: Printer is not initialized");
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
         try {
             int temperature = mPrinter.getTemperature();
             JSObject ret = new JSObject();
             ret.put("temperature", temperature);
-            mCallback.resolve(ret);
+            call.resolve(ret);
         } catch (Exception e) {
-            e.printStackTrace();
-            mCallback.reject(errorCode.get(7) + e.getMessage(), "7");
+            Log.e(LOG_TAG, "Error fetching temperature", e);
+            call.reject(errorCode.get(7) + ": " + e.getMessage(), "7");
         }
     }
 
-    public void setBarcode(int align, boolean small, int scale, int hri, int height) {
+    public void setBarcode(int align, boolean small, int scale, int hri, int height, PluginCall call) {
+        if (mPrinter == null) {
+            Log.e(LOG_TAG, "Cannot set barcode: Printer is not initialized");
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
         try {
             mPrinter.setBarcode(align, small, scale, hri, height);
-            mCallback.resolve();
+            call.resolve();
         } catch (Exception e) {
-            e.printStackTrace();
-            mCallback.reject(errorCode.get(10) + e.getMessage(), "10");
+            Log.e(LOG_TAG, "Error setting barcode", e);
+            call.reject(errorCode.get(10) + ": " + e.getMessage(), "10");
         }
     }
 
-    public void printBarcode(int type, String data) {
+    public void printBarcode(int type, String data, PluginCall call) {
+        if (mPrinter == null) {
+            Log.e(LOG_TAG, "Cannot print barcode: Printer is not initialized");
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
         try {
             mPrinter.printBarcode(type, data);
             mPrinter.flush();
-            mCallback.resolve();
+            call.resolve();
         } catch (Exception e) {
-            e.printStackTrace();
-            mCallback.reject(errorCode.get(8) + e.getMessage(), "8");
+            Log.e(LOG_TAG, "Error printing barcode", e);
+            call.reject(errorCode.get(8) + ": " + e.getMessage(), "8");
         }
     }
 
-    public void printQRCode(int size, int eccLv, String data) {
+    public void printQRCode(int size, int eccLv, String data, PluginCall call) {
+        if (mPrinter == null) {
+            Log.e(LOG_TAG, "Cannot print QR code: Printer is not initialized");
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
         try {
             mPrinter.printQRCode(size, eccLv, data);
             mPrinter.flush();
-            mCallback.resolve();
+            call.resolve();
         } catch (Exception e) {
-            e.printStackTrace();
-            mCallback.reject(errorCode.get(22) + e.getMessage(), "22");
+            Log.e(LOG_TAG, "Error printing QR code", e);
+            call.reject(errorCode.get(22) + ": " + e.getMessage(), "22");
         }
     }
 
-    public void printSelfTest() {
+    public void printSelfTest(PluginCall call) {
+        if (mPrinter == null) {
+            Log.e(LOG_TAG, "Cannot print self-test: Printer is not initialized");
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
         try {
             mPrinter.printSelfTest();
             mPrinter.flush();
-            mCallback.resolve();
+            call.resolve();
         } catch (Exception e) {
-            e.printStackTrace();
-            mCallback.reject(errorCode.get(9) + e.getMessage(), "9");
+            Log.e(LOG_TAG, "Error printing self-test", e);
+            call.reject(errorCode.get(9) + ": " + e.getMessage(), "9");
         }
     }
 
-    public void drawPageRectangle(int x, int y, int width, int height, int fillMode) {
+    public void drawPageRectangle(int x, int y, int width, int height, int fillMode, PluginCall call) {
+        if (mPrinter == null) {
+            Log.e(LOG_TAG, "Cannot draw rectangle: Printer is not initialized");
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
         try {
             mPrinter.drawPageRectangle(x, y, width, height, fillMode);
-            mCallback.resolve();
+            call.resolve();
         } catch (Exception e) {
-            e.printStackTrace();
-            mCallback.reject(errorCode.get(12) + e.getMessage(), "12");
+            Log.e(LOG_TAG, "Error drawing rectangle", e);
+            call.reject(errorCode.get(12) + ": " + e.getMessage(), "12");
         }
     }
 
-    public void drawPageFrame(int x, int y, int width, int height, int fillMode, int thickness) {
+    public void drawPageFrame(int x, int y, int width, int height, int fillMode, int thickness, PluginCall call) {
+        if (mPrinter == null) {
+            Log.e(LOG_TAG, "Cannot draw frame: Printer is not initialized");
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
         try {
             mPrinter.drawPageFrame(x, y, width, height, fillMode, thickness);
-            mCallback.resolve();
+            call.resolve();
         } catch (Exception e) {
-            e.printStackTrace();
-            mCallback.reject(errorCode.get(16) + e.getMessage(), "16");
+            Log.e(LOG_TAG, "Error drawing frame", e);
+            call.reject(errorCode.get(16) + ": " + e.getMessage(), "16");
         }
     }
 
-    public void selectStandardMode() {
+    public void selectStandardMode(PluginCall call) {
+        if (mPrinter == null) {
+            Log.e(LOG_TAG, "Cannot select standard mode: Printer is not initialized");
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
         try {
             mPrinter.selectStandardMode();
-            mCallback.resolve();
+            call.resolve();
         } catch (Exception e) {
-            e.printStackTrace();
-            mCallback.reject(errorCode.get(13) + e.getMessage(), "13");
+            Log.e(LOG_TAG, "Error selecting standard mode", e);
+            call.reject(errorCode.get(13) + ": " + e.getMessage(), "13");
         }
     }
 
-    public void selectPageMode() {
+    public void selectPageMode(PluginCall call) {
+        if (mPrinter == null) {
+            Log.e(LOG_TAG, "Cannot select page mode: Printer is not initialized");
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
         try {
             mPrinter.selectPageMode();
-            mCallback.resolve();
+            call.resolve();
         } catch (Exception e) {
-            e.printStackTrace();
-            mCallback.reject(errorCode.get(14) + e.getMessage(), "14");
+            Log.e(LOG_TAG, "Error selecting page mode", e);
+            call.reject(errorCode.get(14) + ": " + e.getMessage(), "14");
         }
     }
 
-    public void printPage() {
+    public void printPage(PluginCall call) {
+        if (mPrinter == null) {
+            Log.e(LOG_TAG, "Cannot print page: Printer is not initialized");
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
         try {
             mPrinter.printPage();
             mPrinter.flush();
-            mCallback.resolve();
+            call.resolve();
         } catch (Exception e) {
-            e.printStackTrace();
-            mCallback.reject(errorCode.get(17) + e.getMessage(), "17");
+            Log.e(LOG_TAG, "Error printing page", e);
+            call.reject(errorCode.get(17) + ": " + e.getMessage(), "17");
         }
     }
 
-    public void setPageRegion(int x, int y, int width, int height, int direction) {
+    public void setPageRegion(int x, int y, int width, int height, int direction, PluginCall call) {
+        if (mPrinter == null) {
+            Log.e(LOG_TAG, "Cannot set page region: Printer is not initialized");
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
         try {
             mPrinter.setPageRegion(x, y, width, height, direction);
-            mCallback.resolve();
+            call.resolve();
         } catch (Exception e) {
-            e.printStackTrace();
-            mCallback.reject(errorCode.get(15) + e.getMessage(), "15");
+            Log.e(LOG_TAG, "Error setting page region", e);
+            call.reject(errorCode.get(15) + ": " + e.getMessage(), "15");
         }
     }
 
-    public void printImage(String image, int width, int height, int align) {
+    public void printImage(String image, int width, int height, int align, PluginCall call) {
+        if (mPrinter == null) {
+            Log.e(LOG_TAG, "Cannot print image: Printer is not initialized");
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
         try {
             BitmapFactory.Options options = new BitmapFactory.Options();
             options.inScaled = false;
@@ -478,10 +594,10 @@ public class DatecsSDKWrapper {
 
             mPrinter.printImage(argb, width, height, align, true);
             mPrinter.flush();
-            mCallback.resolve();
+            call.resolve();
         } catch (Exception e) {
-            e.printStackTrace();
-            mCallback.reject(errorCode.get(11) + e.getMessage(), "11");
+            Log.e(LOG_TAG, "Error printing image", e);
+            call.reject(errorCode.get(11) + ": " + e.getMessage(), "11");
         }
     }
 
@@ -502,7 +618,8 @@ public class DatecsSDKWrapper {
     }
 
     private void showError(final String text, boolean resetConnection) {
-        if (resetConnection) {
+        Log.e(LOG_TAG, "Error: " + text);
+        if (resetConnection && mConnectCallback != null) {
             connect(mConnectCallback);
         }
     }
