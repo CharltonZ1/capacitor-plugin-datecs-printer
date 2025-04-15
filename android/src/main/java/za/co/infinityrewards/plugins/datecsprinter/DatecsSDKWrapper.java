@@ -357,6 +357,7 @@ public class DatecsSDKWrapper {
             return;
         }
         try {
+
             mPrinter.printTaggedText(text, charset);
             mPrinter.flush();
             call.resolve();

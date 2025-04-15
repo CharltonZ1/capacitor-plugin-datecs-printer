@@ -153,7 +153,12 @@ public class DatecsPrinterPlugin extends Plugin {
             return;
         }
         String text = call.getString("text");
-        String charset = call.getString("charset", "windows-1251");
+        String charset = call.getString("charset", "UTF-8"); // "windows-1251"
+
+        // Log the text and charset for debugging
+        // Log.d("DatecsPrinterPlugin", "Text: " + text);
+        // Log.d("DatecsPrinterPlugin", "Charset: " + charset);
+
         if (text != null) {
             printer.printTaggedText(text, charset, call);
         } else {
