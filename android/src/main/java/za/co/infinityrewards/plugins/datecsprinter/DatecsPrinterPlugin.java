@@ -43,15 +43,32 @@ public class DatecsPrinterPlugin extends Plugin {
 
     @PluginMethod
     public void listBluetoothDevices(PluginCall call) {
-        if (!hasPermission("bluetooth")) {
-            Log.d("DatecsPrinterPlugin", "Requesting bluetooth permission");
-            requestPermissionForAlias("bluetooth", call, "bluetoothPermissionCallback");
-            return;
-        }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && !hasPermission("location")) {
-            Log.d("DatecsPrinterPlugin", "Requesting location permission");
-            requestPermissionForAlias("location", call, "locationPermissionCallback");
-            return;
+        // Check Bluetooth permissions based on Android version
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(getContext(),
+                    Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+                Log.d("DatecsPrinterPlugin", "Requesting BLUETOOTH_SCAN permission");
+                requestPermissionForAlias("bluetooth", call, "bluetoothPermissionCallback");
+                return;
+            }
+        } else {
+            if (ContextCompat.checkSelfPermission(getContext(),
+                    Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
+                    ContextCompat.checkSelfPermission(getContext(),
+                            Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
+                Log.d("DatecsPrinterPlugin", "Requesting legacy Bluetooth permissions");
+                requestPermissionForAlias("bluetooth", call, "bluetoothPermissionCallback");
+                return;
+            }
+            // Check location permissions for Android 11 and below
+            if (ContextCompat.checkSelfPermission(getContext(),
+                    Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(getContext(),
+                            Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                Log.d("DatecsPrinterPlugin", "Requesting location permission");
+                requestPermissionForAlias("location", call, "locationPermissionCallback");
+                return;
+            }
         }
         if (printer == null) {
             Log.e("DatecsPrinterPlugin", "Printer is not initialized");
@@ -63,14 +80,32 @@ public class DatecsPrinterPlugin extends Plugin {
 
     @PermissionCallback
     private void bluetoothPermissionCallback(PluginCall call) {
-        if (!hasPermission("bluetooth")) {
-            call.reject("Bluetooth permissions not granted");
-            return;
-        }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && !hasPermission("location")) {
-            Log.d("DatecsPrinterPlugin", "Requesting location permission");
-            requestPermissionForAlias("location", call, "locationPermissionCallback");
-            return;
+        // Verify only the required Bluetooth permissions
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(getContext(),
+                    Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+                Log.e("DatecsPrinterPlugin", "BLUETOOTH_SCAN permission not granted");
+                call.reject("BLUETOOTH_SCAN permission not granted");
+                return;
+            }
+        } else {
+            if (ContextCompat.checkSelfPermission(getContext(),
+                    Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
+                    ContextCompat.checkSelfPermission(getContext(),
+                            Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
+                Log.e("DatecsPrinterPlugin", "Legacy Bluetooth permissions not granted");
+                call.reject("Legacy Bluetooth permissions not granted");
+                return;
+            }
+            // Check location permissions for Android 11 and below
+            if (ContextCompat.checkSelfPermission(getContext(),
+                    Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(getContext(),
+                            Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                Log.d("DatecsPrinterPlugin", "Requesting location permission");
+                requestPermissionForAlias("location", call, "locationPermissionCallback");
+                return;
+            }
         }
         if (printer == null) {
             Log.e("DatecsPrinterPlugin", "Printer is not initialized");
@@ -87,6 +122,7 @@ public class DatecsPrinterPlugin extends Plugin {
                     Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
                     ContextCompat.checkSelfPermission(getContext(),
                             Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                Log.e("DatecsPrinterPlugin", "Location permissions not granted");
                 call.reject("Location permissions not granted");
                 return;
             }
@@ -101,16 +137,21 @@ public class DatecsPrinterPlugin extends Plugin {
 
     @PluginMethod
     public void connect(PluginCall call) {
-        if (!hasPermission("bluetooth")) {
-            Log.d("DatecsPrinterPlugin", "Requesting bluetooth permission");
-            requestPermissionForAlias("bluetooth", call, "connectCallback");
-            return;
-        }
+        // Check Bluetooth permissions based on Android version
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ContextCompat.checkSelfPermission(getContext(),
                     Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                Log.e("DatecsPrinterPlugin", "Missing BLUETOOTH_CONNECT permission");
-                call.reject("Missing BLUETOOTH_CONNECT permission");
+                Log.d("DatecsPrinterPlugin", "Requesting BLUETOOTH_CONNECT permission");
+                requestPermissionForAlias("bluetooth", call, "connectCallback");
+                return;
+            }
+        } else {
+            if (ContextCompat.checkSelfPermission(getContext(),
+                    Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
+                    ContextCompat.checkSelfPermission(getContext(),
+                            Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
+                Log.d("DatecsPrinterPlugin", "Requesting legacy Bluetooth permissions");
+                requestPermissionForAlias("bluetooth", call, "connectCallback");
                 return;
             }
         }
@@ -131,10 +172,21 @@ public class DatecsPrinterPlugin extends Plugin {
 
     @PermissionCallback
     private void connectCallback(PluginCall call) {
+        // Verify only the required Bluetooth permissions
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ContextCompat.checkSelfPermission(getContext(),
                     Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                Log.e("DatecsPrinterPlugin", "BLUETOOTH_CONNECT permission not granted");
                 call.reject("BLUETOOTH_CONNECT permission not granted");
+                return;
+            }
+        } else {
+            if (ContextCompat.checkSelfPermission(getContext(),
+                    Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
+                    ContextCompat.checkSelfPermission(getContext(),
+                            Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
+                Log.e("DatecsPrinterPlugin", "Legacy Bluetooth permissions not granted");
+                call.reject("Legacy Bluetooth permissions not granted");
                 return;
             }
         }
@@ -148,6 +200,7 @@ public class DatecsPrinterPlugin extends Plugin {
             printer.setAddress(address);
             printer.connect(call);
         } else {
+            Log.e("DatecsPrinterPlugin", "Address is required");
             call.reject("Address is required");
         }
     }
