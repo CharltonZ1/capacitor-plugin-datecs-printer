@@ -571,6 +571,7 @@ public class Printer {
         }
     }
 
+    // This method resets the printer state (spacing, alignment, etc.) before printing the text.
     private void printTaggedText(byte[] b) throws IOException {
         boolean LEN = true;
         boolean ELE = true;
@@ -632,8 +633,8 @@ public class Printer {
                     }
 
                     // Log the tag being processed
-                    String tag = new String(tbuf, index, hashlen, StandardCharsets.ISO_8859_1);
-                    Log.d("PrintDebug", "Processing tag: " + tag + ", hash: " + tmp + ", set: " + set);
+                    // String tag = new String(tbuf, index, hashlen, StandardCharsets.ISO_8859_1);
+                    // Log.d("PrintDebug", "Processing tag: " + tag + ", hash: " + tmp + ", set: " + set);
 
                     if (tmp == BREAK) {
                         var32 = pos - 1;
