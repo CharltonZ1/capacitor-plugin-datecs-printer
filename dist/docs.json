@@ -1,0 +1,287 @@
+{
+  "api": {
+    "name": "DatecsPrinterPlugin",
+    "slug": "datecsprinterplugin",
+    "docs": "",
+    "tags": [],
+    "methods": [
+      {
+        "name": "listBluetoothDevices",
+        "signature": "() => Promise<{ devices: { name: string; address: string; aliasName: string; type: number; }[]; }>",
+        "parameters": [],
+        "returns": "Promise<{ devices: { name: string; address: string; aliasName: string; type: number; }[]; }>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "listbluetoothdevices"
+      },
+      {
+        "name": "connect",
+        "signature": "(options: { address: string; }) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "{ address: string; }"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "connect"
+      },
+      {
+        "name": "disconnect",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "disconnect"
+      },
+      {
+        "name": "feedPaper",
+        "signature": "(options: { lines: number; }) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "{ lines: number; }"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "feedpaper"
+      },
+      {
+        "name": "printText",
+        "signature": "(options: { text: string; charset: string; }) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "{ text: string; charset: string; }"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "printtext"
+      },
+      {
+        "name": "printSelfTest",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "printselftest"
+      },
+      {
+        "name": "getStatus",
+        "signature": "() => Promise<{ status: number; }>",
+        "parameters": [],
+        "returns": "Promise<{ status: number; }>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "getstatus"
+      },
+      {
+        "name": "getTemperature",
+        "signature": "() => Promise<{ temperature: number; }>",
+        "parameters": [],
+        "returns": "Promise<{ temperature: number; }>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "gettemperature"
+      },
+      {
+        "name": "setBarcode",
+        "signature": "(options: { align: number; small: boolean; scale: number; hri: number; height: number; }) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "{ align: number; small: boolean; scale: number; hri: number; height: number; }"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "setbarcode"
+      },
+      {
+        "name": "printBarcode",
+        "signature": "(options: { type: number; data: string; }) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "{ type: number; data: string; }"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "printbarcode"
+      },
+      {
+        "name": "printQRCode",
+        "signature": "(options: { size: number; eccLv: number; data: string; }) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "{ size: number; eccLv: number; data: string; }"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "printqrcode"
+      },
+      {
+        "name": "printImage",
+        "signature": "(options: { image: string; width: number; height: number; align: number; }) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "{ image: string; width: number; height: number; align: number; }"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "printimage"
+      },
+      {
+        "name": "drawPageRectangle",
+        "signature": "(options: { x: number; y: number; width: number; height: number; fillMode: number; }) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "{ x: number; y: number; width: number; height: number; fillMode: number; }"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "drawpagerectangle"
+      },
+      {
+        "name": "drawPageFrame",
+        "signature": "(options: { x: number; y: number; width: number; height: number; fillMode: number; thickness: number; }) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "{ x: number; y: number; width: number; height: number; fillMode: number; thickness: number; }"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "drawpageframe"
+      },
+      {
+        "name": "selectPageMode",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "selectpagemode"
+      },
+      {
+        "name": "selectStandardMode",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "selectstandardmode"
+      },
+      {
+        "name": "setPageRegion",
+        "signature": "(options: { x: number; y: number; width: number; height: number; direction: number; }) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "{ x: number; y: number; width: number; height: number; direction: number; }"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "setpageregion"
+      },
+      {
+        "name": "printPage",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "printpage"
+      },
+      {
+        "name": "write",
+        "signature": "(options: { bytes: string; }) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "{ bytes: string; }"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "write"
+      },
+      {
+        "name": "writeHex",
+        "signature": "(options: { hex: string; }) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "{ hex: string; }"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "writehex"
+      }
+    ],
+    "properties": []
+  },
+  "interfaces": [],
+  "enums": [],
+  "typeAliases": [],
+  "pluginConfigs": []
+}
