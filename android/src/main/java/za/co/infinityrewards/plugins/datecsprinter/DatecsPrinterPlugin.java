@@ -21,12 +21,8 @@ import com.getcapacitor.annotation.PermissionCallback;
                 Manifest.permission.BLUETOOTH,
                 Manifest.permission.BLUETOOTH_ADMIN,
                 Manifest.permission.BLUETOOTH_SCAN,
-                Manifest.permission.BLUETOOTH_CONNECT
-        }, alias = "bluetooth"),
-        @Permission(strings = {
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-        }, alias = "location")
+                Manifest.permission.BLUETOOTH_CONNECT,
+        }, alias = "bluetooth")
 })
 public class DatecsPrinterPlugin extends Plugin {
     private DatecsSDKWrapper printer;
@@ -45,12 +41,7 @@ public class DatecsPrinterPlugin extends Plugin {
     public void listBluetoothDevices(PluginCall call) {
         if (!hasPermission("bluetooth")) {
             Log.d("DatecsPrinterPlugin", "Requesting bluetooth permission");
-            requestPermissionForAlias("bluetooth", call, "bluetoothPermissionCallback");
-            return;
-        }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && !hasPermission("location")) {
-            Log.d("DatecsPrinterPlugin", "Requesting location permission");
-            requestPermissionForAlias("location", call, "locationPermissionCallback");
+            requestPermissionForAlias("bluetooth", call, "listBluetoothDevicesCallback");
             return;
         }
         if (printer == null) {
@@ -62,40 +53,27 @@ public class DatecsPrinterPlugin extends Plugin {
     }
 
     @PermissionCallback
-    private void bluetoothPermissionCallback(PluginCall call) {
-        if (!hasPermission("bluetooth")) {
-            call.reject("Bluetooth permissions not granted");
-            return;
-        }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && !hasPermission("location")) {
-            Log.d("DatecsPrinterPlugin", "Requesting location permission");
-            requestPermissionForAlias("location", call, "locationPermissionCallback");
-            return;
-        }
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
-        }
-        printer.getBluetoothPairedDevices(call);
-    }
-
-    @PermissionCallback
-    private void locationPermissionCallback(PluginCall call) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+    private void listBluetoothDevicesCallback(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ContextCompat.checkSelfPermission(getContext(),
-                    Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-                    ContextCompat.checkSelfPermission(getContext(),
-                            Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                call.reject("Location permissions not granted");
+                    Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+                call.reject("BLUETOOTH_SCAN permission not granted");
+                return;
+            }
+        } else {
+            if (ContextCompat.checkSelfPermission(getContext(),
+                    Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                call.reject("ACCESS_FINE_LOCATION permission not granted");
                 return;
             }
         }
+
         if (printer == null) {
             Log.e("DatecsPrinterPlugin", "Printer is not initialized");
             call.reject("Printer is not initialized");
             return;
         }
+
         printer.getBluetoothPairedDevices(call);
     }
 
@@ -108,9 +86,11 @@ public class DatecsPrinterPlugin extends Plugin {
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ContextCompat.checkSelfPermission(getContext(),
-                    Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                Log.e("DatecsPrinterPlugin", "Missing BLUETOOTH_CONNECT permission");
-                call.reject("Missing BLUETOOTH_CONNECT permission");
+                    Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED ||
+                    ContextCompat.checkSelfPermission(getContext(),
+                            Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                Log.e("DatecsPrinterPlugin", "Missing Bluetooth permissions");
+                call.reject("Missing Bluetooth permissions");
                 return;
             }
         }
@@ -138,11 +118,13 @@ public class DatecsPrinterPlugin extends Plugin {
                 return;
             }
         }
+
         if (printer == null) {
             Log.e("DatecsPrinterPlugin", "Printer is not initialized");
             call.reject("Printer is not initialized");
             return;
         }
+
         String address = call.getString("address");
         if (address != null) {
             printer.setAddress(address);
