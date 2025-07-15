@@ -62,9 +62,7 @@ public class DatecsPrinterPlugin extends Plugin {
             }
             // Check location permissions for Android 11 and below
             if (ContextCompat.checkSelfPermission(getContext(),
-                    Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-                    ContextCompat.checkSelfPermission(getContext(),
-                            Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 Log.d("DatecsPrinterPlugin", "Requesting location permission");
                 requestPermissionForAlias("location", call, "locationPermissionCallback");
                 return;
@@ -99,9 +97,7 @@ public class DatecsPrinterPlugin extends Plugin {
             }
             // Check location permissions for Android 11 and below
             if (ContextCompat.checkSelfPermission(getContext(),
-                    Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-                    ContextCompat.checkSelfPermission(getContext(),
-                            Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 Log.d("DatecsPrinterPlugin", "Requesting location permission");
                 requestPermissionForAlias("location", call, "locationPermissionCallback");
                 return;
@@ -119,9 +115,7 @@ public class DatecsPrinterPlugin extends Plugin {
     private void locationPermissionCallback(PluginCall call) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             if (ContextCompat.checkSelfPermission(getContext(),
-                    Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-                    ContextCompat.checkSelfPermission(getContext(),
-                            Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 Log.e("DatecsPrinterPlugin", "Location permissions not granted");
                 call.reject("Location permissions not granted");
                 return;
