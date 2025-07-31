@@ -1,6 +1,12 @@
 package za.co.infinityrewards.plugins.datecsprinter;
 
 import android.Manifest;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.util.Log;
@@ -41,6 +47,30 @@ public class DatecsPrinterPlugin extends Plugin {
         }
     }
 
+    private BroadcastReceiver discoveryReceiver;
+
+    private void startDiscovery() {
+        if (discoveryReceiver == null) {
+            discoveryReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    String action = intent.getAction();
+                    if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+                        BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                        // Notify the web view about the found device
+                        JSObject ret = new JSObject();
+                        ret.put("name", device.getName());
+                        ret.put("address", device.getAddress());
+                        notifyListeners("onDeviceFound", ret);
+                    }
+                }
+            };
+            IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+            getContext().registerReceiver(discoveryReceiver, filter);
+        }
+        BluetoothAdapter.getDefaultAdapter().startDiscovery();
+    }
+
     @PluginMethod
     public void listBluetoothDevices(PluginCall call) {
         // Check Bluetooth permissions based on Android version
@@ -68,12 +98,8 @@ public class DatecsPrinterPlugin extends Plugin {
                 return;
             }
         }
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
-        }
-        printer.getBluetoothPairedDevices(call);
+        startDiscovery();
+        call.resolve();
     }
 
     @PermissionCallback
@@ -103,12 +129,8 @@ public class DatecsPrinterPlugin extends Plugin {
                 return;
             }
         }
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
-        }
-        printer.getBluetoothPairedDevices(call);
+        startDiscovery();
+        call.resolve();
     }
 
     @PermissionCallback
@@ -121,12 +143,8 @@ public class DatecsPrinterPlugin extends Plugin {
                 return;
             }
         }
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
-        }
-        printer.getBluetoothPairedDevices(call);
+        startDiscovery();
+        call.resolve();
     }
 
     @PluginMethod
