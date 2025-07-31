@@ -1,4 +1,4 @@
-import type { Plugin } from '@capacitor/core';
+import type { Plugin, PluginListenerHandle } from '@capacitor/core';
 
 export interface DatecsPrinterPlugin extends Plugin {
   // isSupported(): Promise<{ supported: boolean }>;
