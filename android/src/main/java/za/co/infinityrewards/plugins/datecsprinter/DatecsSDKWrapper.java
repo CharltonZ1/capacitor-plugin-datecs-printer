@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
 import android.content.IntentFilter;
 import android.util.Log;
 import android.graphics.Bitmap;
@@ -42,7 +43,8 @@ public class DatecsSDKWrapper {
     private final ProtocolAdapter.PrinterListener mChannelListener = new ProtocolAdapter.PrinterListener() {
         @Override
         public void onPaperStateChanged(boolean hasNoPaper) {
-            showToast(hasNoPaper ? DatecsUtil.getStringFromStringResource(app, "no_paper") : DatecsUtil.getStringFromStringResource(app, "paper_ok"));
+            showToast(hasNoPaper ? DatecsUtil.getStringFromStringResource(app, "no_paper")
+                    : DatecsUtil.getStringFromStringResource(app, "paper_ok"));
         }
 
         @Override
@@ -159,6 +161,7 @@ public class DatecsSDKWrapper {
                 call.resolve(result);
             } else {
                 Log.d(LOG_TAG, "No paired devices found, starting discovery for 'Inner Printer'");
+                BluetoothAdapter finalMBluetoothAdapter = mBluetoothAdapter;
                 final BroadcastReceiver receiver = new BroadcastReceiver() {
                     @Override
                     public void onReceive(Context context, Intent intent) {
@@ -176,7 +179,7 @@ public class DatecsSDKWrapper {
                             Log.d(LOG_TAG, "Discovery finished");
                             context.unregisterReceiver(this);
                             // If the printer is still not found, reject the call
-                            if (mBluetoothAdapter.getBondedDevices().size() == 0) {
+                            if (finalMBluetoothAdapter.getBondedDevices().size() == 0) {
                                 call.reject(errorCode.get(2), "2");
                             }
                         }
@@ -293,7 +296,8 @@ public class DatecsSDKWrapper {
                 } catch (IOException e) {
                     Log.e(LOG_TAG, "Primary connection failed, trying fallback", e);
                     try {
-                        mBluetoothSocket = (BluetoothSocket) device.getClass().getMethod("createRfcommSocket", new Class[]{int.class}).invoke(device, 1);
+                        mBluetoothSocket = (BluetoothSocket) device.getClass()
+                                .getMethod("createRfcommSocket", new Class[] { int.class }).invoke(device, 1);
                         Thread.sleep(50);
                         mBluetoothSocket.connect();
                         if (!mBluetoothSocket.isConnected()) {
@@ -311,10 +315,6 @@ public class DatecsSDKWrapper {
                     Log.e(LOG_TAG, "Connection error", e);
                     call.reject(errorCode.get(18) + ": " + e.getMessage(), "18");
                     return;
-                } catch (Exception e) {
-                    Log.e(LOG_TAG, "Connection error", e);
-                    call.reject(errorCode.get(18) + ": " + e.getMessage(), "18");
-                    return;
                 }
 
                 try {
@@ -326,12 +326,15 @@ public class DatecsSDKWrapper {
                     call.reject(errorCode.get(20) + ": " + e.getMessage(), "20");
                 }
             }
-        }, DatecsUtil.getStringFromStringResource(app, "printer"), DatecsUtil.getStringFromStringResource(app, "connecting"));
+        }, DatecsUtil.getStringFromStringResource(app, "printer"),
+                DatecsUtil.getStringFromStringResource(app, "connecting"));
     }
 
-    private BluetoothSocket createBluetoothSocket(BluetoothDevice device, UUID uuid, final PluginCall call) throws IOException {
+    private BluetoothSocket createBluetoothSocket(BluetoothDevice device, UUID uuid, final PluginCall call)
+            throws IOException {
         try {
-            java.lang.reflect.Method method = device.getClass().getMethod("createRfcommSocketToServiceRecord", new Class[]{UUID.class});
+            java.lang.reflect.Method method = device.getClass().getMethod("createRfcommSocketToServiceRecord",
+                    new Class[] { UUID.class });
             return (BluetoothSocket) method.invoke(device, uuid);
         } catch (Exception e) {
             Log.e(LOG_TAG, "Error creating Bluetooth socket", e);
@@ -341,7 +344,8 @@ public class DatecsSDKWrapper {
         return device.createRfcommSocketToServiceRecord(uuid);
     }
 
-    protected void initializePrinter(InputStream inputStream, OutputStream outputStream, PluginCall call) throws IOException {
+    protected void initializePrinter(InputStream inputStream, OutputStream outputStream, PluginCall call)
+            throws IOException {
         Log.d(LOG_TAG, "Initializing printer...");
         mProtocolAdapter = new ProtocolAdapter(inputStream, outputStream);
         if (mProtocolAdapter.isProtocolEnabled()) {
