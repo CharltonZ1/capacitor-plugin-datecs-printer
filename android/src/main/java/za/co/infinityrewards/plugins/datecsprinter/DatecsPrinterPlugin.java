@@ -21,6 +21,10 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
+import com.wisedevice.sdk.IInitDeviceSdkListener;
+import com.wisedevice.sdk.WiseDeviceSdk;
+import com.wisepos.smartpos.InitPosSdkListener;
+import com.wisepos.smartpos.WisePosSdk;
 
 @CapacitorPlugin(name = "DatecsPrinter", permissions = {
         @Permission(strings = {
@@ -149,37 +153,71 @@ public class DatecsPrinterPlugin extends Plugin {
 
     @PluginMethod
     public void connect(PluginCall call) {
-        // Check Bluetooth permissions based on Android version
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(getContext(),
-                    Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                Log.d("DatecsPrinterPlugin", "Requesting BLUETOOTH_CONNECT permission");
-                requestPermissionForAlias("bluetooth", call, "connectCallback");
+        boolean isAddPayDevice = call.getBoolean("isAddPayDevice", false);
+
+        if (isAddPayDevice) {
+            initAddPaySDK(call);
+        } else {
+            // Check Bluetooth permissions based on Android version
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (ContextCompat.checkSelfPermission(getContext(),
+                        Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                    Log.d("DatecsPrinterPlugin", "Requesting BLUETOOTH_CONNECT permission");
+                    requestPermissionForAlias("bluetooth", call, "connectCallback");
+                    return;
+                }
+            } else {
+                if (ContextCompat.checkSelfPermission(getContext(),
+                        Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
+                        ContextCompat.checkSelfPermission(getContext(),
+                                Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
+                    Log.d("DatecsPrinterPlugin", "Requesting legacy Bluetooth permissions");
+                    requestPermissionForAlias("bluetooth", call, "connectCallback");
+                    return;
+                }
+            }
+            if (printer == null) {
+                Log.e("DatecsPrinterPlugin", "Printer is not initialized");
+                call.reject("Printer is not initialized");
                 return;
             }
-        } else {
-            if (ContextCompat.checkSelfPermission(getContext(),
-                    Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
-                    ContextCompat.checkSelfPermission(getContext(),
-                            Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-                Log.d("DatecsPrinterPlugin", "Requesting legacy Bluetooth permissions");
-                requestPermissionForAlias("bluetooth", call, "connectCallback");
-                return;
+            String address = call.getString("address");
+            if (address != null) {
+                printer.setAddress(address);
+                printer.connect(call);
+            } else {
+                Log.e("DatecsPrinterPlugin", "Address is required");
+                call.reject("Address is required");
             }
         }
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
-        }
-        String address = call.getString("address");
-        if (address != null) {
-            printer.setAddress(address);
-            printer.connect(call);
-        } else {
-            Log.e("DatecsPrinterPlugin", "Address is required");
-            call.reject("Address is required");
-        }
+    }
+
+    private void initAddPaySDK(PluginCall call) {
+        WisePosSdk.getInstance().initPosSdk(getContext(), new InitPosSdkListener() {
+            @Override
+            public void onInitPosSuccess() {
+                Log.d("DatecsPrinterPlugin", "WisePosSdk initialized");
+                WiseDeviceSdk.getInstance().initDeviceSdk(getContext(), new IInitDeviceSdkListener() {
+                    @Override
+                    public void onInitPosSuccess() {
+                        Log.d("DatecsPrinterPlugin", "WiseDeviceSdk initialized");
+                        call.resolve();
+                    }
+
+                    @Override
+                    public void onInitPosFail(int i) {
+                        Log.e("DatecsPrinterPlugin", "Failed to initialize WiseDeviceSdk: " + i);
+                        call.reject("Failed to initialize WiseDeviceSdk");
+                    }
+                });
+            }
+
+            @Override
+            public void onInitPosFail(int i) {
+                Log.e("DatecsPrinterPlugin", "Failed to initialize WisePosSdk: " + i);
+                call.reject("Failed to initialize WisePosSdk");
+            }
+        });
     }
 
     @PermissionCallback
@@ -230,23 +268,53 @@ public class DatecsPrinterPlugin extends Plugin {
 
     @PluginMethod
     public void printText(PluginCall call) {
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
-        }
-        String text = call.getString("text");
-        String charset = call.getString("charset", "UTF-8"); // "windows-1251"
+        boolean isAddPayDevice = call.getBoolean("isAddPayDevice", false);
 
-        // Log the text and charset for debugging
-        // Log.d("DatecsPrinterPlugin", "Text: " + text);
-        // Log.d("DatecsPrinterPlugin", "Charset: " + charset);
+        if (isAddPayDevice) {
+            try {
+                com.wisepos.smartpos.printer.Printer printer = WisePosSdk.getInstance().printer;
+                printer.initPrinter();
+                com.wisepos.smartpos.printer.TextInfo textInfo = new com.wisepos.smartpos.printer.TextInfo();
+                textInfo.setText(call.getString("text"));
+                printer.addSingleText(textInfo);
+                printer.startPrinting(new android.os.Bundle(), new com.wisepos.smartpos.printer.PrinterListener() {
+                    @Override
+                    public void onError(int i) {
+                        call.reject("Failed to print: " + i);
+                    }
 
-        if (text != null) {
-            printer.printTaggedText(text, charset, call);
+                    @Override
+                    public void onFinish() {
+                        call.resolve();
+                    }
+
+                    @Override
+                    public void onReport(int i) {
+
+                    }
+                });
+            } catch (Exception e) {
+                call.reject(e.getMessage());
+            }
         } else {
-            Log.e("DatecsPrinterPlugin", "Text is required");
-            call.reject("Text is required");
+            if (printer == null) {
+                Log.e("DatecsPrinterPlugin", "Printer is not initialized");
+                call.reject("Printer is not initialized");
+                return;
+            }
+            String text = call.getString("text");
+            String charset = call.getString("charset", "UTF-8"); // "windows-1251"
+
+            // Log the text and charset for debugging
+            // Log.d("DatecsPrinterPlugin", "Text: " + text);
+            // Log.d("DatecsPrinterPlugin", "Charset: " + charset);
+
+            if (text != null) {
+                printer.printTaggedText(text, charset, call);
+            } else {
+                Log.e("DatecsPrinterPlugin", "Text is required");
+                call.reject("Text is required");
+            }
         }
     }
 
@@ -454,6 +522,26 @@ public class DatecsPrinterPlugin extends Plugin {
         } else {
             Log.e("DatecsPrinterPlugin", "Image data is required");
             call.reject("Image data is required");
+        }
+    }
+
+    @PluginMethod
+    public void stopDiscovery(PluginCall call) {
+        if (discoveryReceiver != null) {
+            getContext().unregisterReceiver(discoveryReceiver);
+            discoveryReceiver = null;
+            BluetoothAdapter.getDefaultAdapter().cancelDiscovery();
+            call.resolve();
+        } else {
+            call.resolve();
+        }
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        if (discoveryReceiver != null) {
+            getContext().unregisterReceiver(discoveryReceiver);
+            discoveryReceiver = null;
         }
     }
 
