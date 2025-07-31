@@ -3,6 +3,7 @@ package za.co.infinityrewards.plugins.datecsprinter;
 import android.app.Activity;
 import android.app.Application;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
@@ -13,6 +14,8 @@ import android.util.Log;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Base64;
+
+import androidx.annotation.NonNull;
 
 import com.datecs.api.printer.ProtocolAdapter;
 import com.getcapacitor.PluginCall;
@@ -38,7 +41,7 @@ public class DatecsSDKWrapper {
     private String mAddress;
     private PluginCall mConnectCallback;
     private final Application app;
-    private Activity activity;
+    private final Activity activity;
 
     private final ProtocolAdapter.PrinterListener mChannelListener = new ProtocolAdapter.PrinterListener() {
         @Override
@@ -61,7 +64,7 @@ public class DatecsSDKWrapper {
         }
     };
 
-    private Map<Integer, String> errorCode = new HashMap<>();
+    private final Map<Integer, String> errorCode = new HashMap<>();
 
     public DatecsSDKWrapper(Activity activity) {
         this.activity = activity;
@@ -122,18 +125,19 @@ public class DatecsSDKWrapper {
                 Log.d(LOG_TAG, "Bluetooth not enabled, requesting enable");
                 Intent enableBluetooth = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                 activity.startActivityForResult(enableBluetooth, 0);
+                call.reject("Bluetooth not enabled");
+                return;
             }
             Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
-            if (pairedDevices.size() > 0) {
+            Log.d(LOG_TAG, "Found " + pairedDevices.size() + " paired devices");
+            if (!pairedDevices.isEmpty()) {
                 JSONArray json = new JSONArray();
                 for (BluetoothDevice device : pairedDevices) {
                     Hashtable map = new Hashtable();
                     int deviceType = 0;
                     try {
                         java.lang.reflect.Method method = device.getClass().getMethod("getType");
-                        if (method != null) {
-                            deviceType = (Integer) method.invoke(device);
-                        }
+                        deviceType = (Integer) method.invoke(device);
                     } catch (Exception e) {
                         Log.e(LOG_TAG, "Error getting device type", e);
                     }
@@ -143,7 +147,7 @@ public class DatecsSDKWrapper {
                     map.put("name", device.getName() != null ? device.getName() : "Unknown");
                     String deviceAlias = device.getName();
                     try {
-                        java.lang.reflect.Method method = device.getClass().getMethod("getAliasName");
+                        java.lang.reflect.Method method = device.getClass().getMethod("getName");
                         if (method != null) {
                             deviceAlias = (String) method.invoke(device);
                         }
@@ -160,31 +164,8 @@ public class DatecsSDKWrapper {
                 Log.d(LOG_TAG, "Devices found: " + json.toString());
                 call.resolve(result);
             } else {
-                Log.d(LOG_TAG, "No paired devices found, starting discovery for 'Inner Printer'");
-                BluetoothAdapter finalMBluetoothAdapter = mBluetoothAdapter;
-                final BroadcastReceiver receiver = new BroadcastReceiver() {
-                    @Override
-                    public void onReceive(Context context, Intent intent) {
-                        String action = intent.getAction();
-                        if (BluetoothDevice.ACTION_FOUND.equals(action)) {
-                            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                            if (device != null && "Inner Printer".equals(device.getName())) {
-                                Log.d(LOG_TAG, "Found 'Inner Printer', attempting to pair");
-                                device.createBond();
-                                context.unregisterReceiver(this);
-                                // Re-call getBluetoothPairedDevices after attempting to pair
-                                getBluetoothPairedDevices(call);
-                            }
-                        } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-                            Log.d(LOG_TAG, "Discovery finished");
-                            context.unregisterReceiver(this);
-                            // If the printer is still not found, reject the call
-                            if (finalMBluetoothAdapter.getBondedDevices().size() == 0) {
-                                call.reject(errorCode.get(2), "2");
-                            }
-                        }
-                    }
-                };
+                Log.d(LOG_TAG, "No paired devices found, starting discovery");
+                final BroadcastReceiver receiver = getBroadcastReceiver(call, mBluetoothAdapter);
                 IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
                 filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
                 activity.registerReceiver(receiver, filter);
@@ -193,10 +174,51 @@ public class DatecsSDKWrapper {
         } catch (SecurityException e) {
             Log.e(LOG_TAG, "Bluetooth permission error", e);
             call.reject("Bluetooth permission not granted");
-        } catch (Exception e) {
-            Log.e(LOG_TAG, "Error listing devices", e);
-            call.reject(e.getMessage());
         }
+    }
+
+    @NonNull
+    private BroadcastReceiver getBroadcastReceiver(PluginCall call, BluetoothAdapter mBluetoothAdapter) {
+        // Re-call getBluetoothPairedDevices after attempting to pair
+        // Fallback to name check
+        // Re-call getBluetoothPairedDevices after attempting to pair
+        // If the printer is still not found, reject the call
+        return new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String action = intent.getAction();
+                if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+                    BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                    if (device != null) {
+                        BluetoothClass bluetoothClass = device.getBluetoothClass();
+                        Log.d(LOG_TAG + "device", "Found device: " + device.getName() + " (" + device.getAddress() + ")"
+                                + " with class: " + bluetoothClass.toString());
+                        if (bluetoothClass.getMajorDeviceClass() == BluetoothClass.Device.Major.IMAGING
+                                && bluetoothClass.getDeviceClass() == 0x680) {
+                            Log.d(LOG_TAG, "Found a printer, attempting to pair");
+                            device.createBond();
+                            context.unregisterReceiver(this);
+                            // Re-call getBluetoothPaired
+                            // Devices after attempting to pair
+                            getBluetoothPairedDevices(call);
+                        } else if (device.getName().toLowerCase().contains("print")) { // Fallback to name check
+                            Log.d(LOG_TAG, "Found 'Inner Printer' by name, attempting to pair");
+                            device.createBond();
+                            context.unregisterReceiver(this);
+                            // Re-call getBluetoothPairedDevices after attempting to pair
+                            getBluetoothPairedDevices(call);
+                        }
+                    }
+                } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
+                    Log.d(LOG_TAG, "Discovery finished");
+                    context.unregisterReceiver(this);
+                    // If the printer is still not found, reject the call
+                    if (mBluetoothAdapter.getBondedDevices().isEmpty()) {
+                        call.reject(errorCode.get(2), "2");
+                    }
+                }
+            }
+        };
     }
 
     public void setAddress(String address) {
@@ -316,7 +338,6 @@ public class DatecsSDKWrapper {
                     call.reject(errorCode.get(18) + ": " + e.getMessage(), "18");
                     return;
                 }
-
                 try {
                     initializePrinter(in, out, call);
                     showToast(DatecsUtil.getStringFromStringResource(app, "printer_connected"));
@@ -356,11 +377,6 @@ public class DatecsSDKWrapper {
         } else {
             Log.d(LOG_TAG, "Protocol disabled, using raw streams");
             mPrinter = new Printer(mProtocolAdapter.getRawInputStream(), mProtocolAdapter.getRawOutputStream());
-        }
-
-        if (mPrinter == null) {
-            call.reject(errorCode.get(20), "20");
-            return;
         }
 
         mPrinter.setConnectionListener(new Printer.ConnectionListener() {
