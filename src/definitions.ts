@@ -1,10 +1,9 @@
-import type { Plugin, PluginListenerHandle } from '@capacitor/core';
+import type { Plugin } from '@capacitor/core';
 
 export interface DatecsPrinterPlugin extends Plugin {
   // isSupported(): Promise<{ supported: boolean }>;
   listBluetoothDevices(): Promise<void>;
   stopDiscovery(): Promise<void>;
-  addListener(eventName: 'onDeviceFound', listenerFunc: (device: { name: string; address: string }) => void): Promise<PluginListenerHandle> & PluginListenerHandle;
   connect(options: { address: string; isAddPayDevice?: boolean }): Promise<void>;
   disconnect(): Promise<void>;
   feedPaper(options: { lines: number }): Promise<void>;

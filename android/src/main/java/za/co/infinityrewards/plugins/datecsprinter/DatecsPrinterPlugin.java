@@ -257,13 +257,25 @@ public class DatecsPrinterPlugin extends Plugin {
 
     @PluginMethod
     public void feedPaper(PluginCall call) {
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
+        boolean isAddPayDevice = call.getBoolean("isAddPayDevice", false);
+
+        if (isAddPayDevice) {
+            try {
+                com.wisepos.smartpos.printer.Printer printer = WisePosSdk.getInstance().printer;
+                printer.feedPaper(call.getInt("lines", 0));
+                call.resolve();
+            } catch (Exception e) {
+                call.reject(e.getMessage());
+            }
+        } else {
+            if (printer == null) {
+                Log.e("DatecsPrinterPlugin", "Printer is not initialized");
+                call.reject("Printer is not initialized");
+                return;
+            }
+            int lines = call.getInt("lines", 0);
+            printer.feedPaper(lines, call);
         }
-        int lines = call.getInt("lines", 0);
-        printer.feedPaper(lines, call);
     }
 
     @PluginMethod
@@ -352,176 +364,298 @@ public class DatecsPrinterPlugin extends Plugin {
 
     @PluginMethod
     public void getStatus(PluginCall call) {
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
+        boolean isAddPayDevice = call.getBoolean("isAddPayDevice", false);
+
+        if (isAddPayDevice) {
+            try {
+                com.wisepos.smartpos.printer.Printer printer = WisePosSdk.getInstance().printer;
+                java.util.Map<String, Object> status = printer.getPrinterStatus();
+                JSObject ret = new JSObject();
+                ret.put("status", status);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject(e.getMessage());
+            }
+        } else {
+            if (printer == null) {
+                Log.e("DatecsPrinterPlugin", "Printer is not initialized");
+                call.reject("Printer is not initialized");
+                return;
+            }
+            printer.getStatus(call);
         }
-        printer.getStatus(call);
     }
 
     @PluginMethod
     public void getTemperature(PluginCall call) {
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
+        boolean isAddPayDevice = call.getBoolean("isAddPayDevice", false);
+
+        if (isAddPayDevice) {
+            call.reject("getTemperature is not supported on AddPay devices");
+        } else {
+            if (printer == null) {
+                Log.e("DatecsPrinterPlugin", "Printer is not initialized");
+                call.reject("Printer is not initialized");
+                return;
+            }
+            printer.getTemperature(call);
         }
-        printer.getTemperature(call);
     }
 
     @PluginMethod
     public void setBarcode(PluginCall call) {
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
+        boolean isAddPayDevice = call.getBoolean("isAddPayDevice", false);
+
+        if (isAddPayDevice) {
+            call.reject("setBarcode is not supported on AddPay devices. Use printBarcode instead.");
+        } else {
+            if (printer == null) {
+                Log.e("DatecsPrinterPlugin", "Printer is not initialized");
+                call.reject("Printer is not initialized");
+                return;
+            }
+            int align = call.getInt("align", 0);
+            boolean small = call.getBoolean("small", false);
+            int scale = call.getInt("scale", 0);
+            int hri = call.getInt("hri", 0);
+            int height = call.getInt("height", 0);
+            printer.setBarcode(align, small, scale, hri, height, call);
         }
-        int align = call.getInt("align", 0);
-        boolean small = call.getBoolean("small", false);
-        int scale = call.getInt("scale", 0);
-        int hri = call.getInt("hri", 0);
-        int height = call.getInt("height", 0);
-        printer.setBarcode(align, small, scale, hri, height, call);
     }
 
     @PluginMethod
     public void printBarcode(PluginCall call) {
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
-        }
-        int type = call.getInt("type", 0);
-        String data = call.getString("data");
-        if (data != null) {
-            printer.printBarcode(type, data, call);
+        boolean isAddPayDevice = call.getBoolean("isAddPayDevice", false);
+
+        if (isAddPayDevice) {
+            try {
+                com.wisepos.smartpos.printer.Printer printer = WisePosSdk.getInstance().printer;
+                android.os.Bundle bundle = new android.os.Bundle();
+                bundle.putInt("height", call.getInt("height", 160));
+                bundle.putInt("width", call.getInt("width", 384));
+                bundle.putString("value", call.getString("data"));
+                bundle.putString("type", "CODE128");
+                printer.addBarcode(bundle);
+                call.resolve();
+            } catch (Exception e) {
+                call.reject(e.getMessage());
+            }
         } else {
-            Log.e("DatecsPrinterPlugin", "Data is required");
-            call.reject("Data is required");
+            if (printer == null) {
+                Log.e("DatecsPrinterPlugin", "Printer is not initialized");
+                call.reject("Printer is not initialized");
+                return;
+            }
+            int type = call.getInt("type", 0);
+            String data = call.getString("data");
+            if (data != null) {
+                printer.printBarcode(type, data, call);
+            } else {
+                Log.e("DatecsPrinterPlugin", "Data is required");
+                call.reject("Data is required");
+            }
         }
     }
 
     @PluginMethod
     public void printQRCode(PluginCall call) {
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
-        }
-        int size = call.getInt("size", 0);
-        int eccLv = call.getInt("eccLv", 0);
-        String data = call.getString("data");
-        if (data != null) {
-            printer.printQRCode(size, eccLv, data, call);
+        boolean isAddPayDevice = call.getBoolean("isAddPayDevice", false);
+
+        if (isAddPayDevice) {
+            try {
+                com.wisepos.smartpos.printer.Printer printer = WisePosSdk.getInstance().printer;
+                android.os.Bundle bundle = new android.os.Bundle();
+                bundle.putInt("expectedHeight", call.getInt("size", 384));
+                bundle.putString("qr_data", call.getString("data"));
+                printer.addQrCode(bundle);
+                call.resolve();
+            } catch (Exception e) {
+                call.reject(e.getMessage());
+            }
         } else {
-            Log.e("DatecsPrinterPlugin", "Data is required");
-            call.reject("Data is required");
+            if (printer == null) {
+                Log.e("DatecsPrinterPlugin", "Printer is not initialized");
+                call.reject("Printer is not initialized");
+                return;
+            }
+            int size = call.getInt("size", 0);
+            int eccLv = call.getInt("eccLv", 0);
+            String data = call.getString("data");
+            if (data != null) {
+                printer.printQRCode(size, eccLv, data, call);
+            } else {
+                Log.e("DatecsPrinterPlugin", "Data is required");
+                call.reject("Data is required");
+            }
         }
     }
 
     @PluginMethod
     public void printSelfTest(PluginCall call) {
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
+        boolean isAddPayDevice = call.getBoolean("isAddPayDevice", false);
+
+        if (isAddPayDevice) {
+            call.reject("printSelfTest is not supported on AddPay devices");
+        } else {
+            if (printer == null) {
+                Log.e("DatecsPrinterPlugin", "Printer is not initialized");
+                call.reject("Printer is not initialized");
+                return;
+            }
+            printer.printSelfTest(call);
         }
-        printer.printSelfTest(call);
     }
 
     @PluginMethod
     public void drawPageRectangle(PluginCall call) {
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
+        boolean isAddPayDevice = call.getBoolean("isAddPayDevice", false);
+
+        if (isAddPayDevice) {
+            call.reject("drawPageRectangle is not supported on AddPay devices");
+        } else {
+            if (printer == null) {
+                Log.e("DatecsPrinterPlugin", "Printer is not initialized");
+                call.reject("Printer is not initialized");
+                return;
+            }
+            int x = call.getInt("x", 0);
+            int y = call.getInt("y", 0);
+            int width = call.getInt("width", 0);
+            int height = call.getInt("height", 0);
+            int fillMode = call.getInt("fillMode", 0);
+            printer.drawPageRectangle(x, y, width, height, fillMode, call);
         }
-        int x = call.getInt("x", 0);
-        int y = call.getInt("y", 0);
-        int width = call.getInt("width", 0);
-        int height = call.getInt("height", 0);
-        int fillMode = call.getInt("fillMode", 0);
-        printer.drawPageRectangle(x, y, width, height, fillMode, call);
     }
 
     @PluginMethod
     public void drawPageFrame(PluginCall call) {
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
+        boolean isAddPayDevice = call.getBoolean("isAddPayDevice", false);
+
+        if (isAddPayDevice) {
+            call.reject("drawPageFrame is not supported on AddPay devices");
+        } else {
+            if (printer == null) {
+                Log.e("DatecsPrinterPlugin", "Printer is not initialized");
+                call.reject("Printer is not initialized");
+                return;
+            }
+            int x = call.getInt("x", 0);
+            int y = call.getInt("y", 0);
+            int width = call.getInt("width", 0);
+            int height = call.getInt("height", 0);
+            int fillMode = call.getInt("fillMode", 0);
+            int thickness = call.getInt("thickness", 0);
+            printer.drawPageFrame(x, y, width, height, fillMode, thickness, call);
         }
-        int x = call.getInt("x", 0);
-        int y = call.getInt("y", 0);
-        int width = call.getInt("width", 0);
-        int height = call.getInt("height", 0);
-        int fillMode = call.getInt("fillMode", 0);
-        int thickness = call.getInt("thickness", 0);
-        printer.drawPageFrame(x, y, width, height, fillMode, thickness, call);
     }
 
     @PluginMethod
     public void selectStandardMode(PluginCall call) {
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
+        boolean isAddPayDevice = call.getBoolean("isAddPayDevice", false);
+
+        if (isAddPayDevice) {
+            call.reject("selectStandardMode is not supported on AddPay devices");
+        } else {
+            if (printer == null) {
+                Log.e("DatecsPrinterPlugin", "Printer is not initialized");
+                call.reject("Printer is not initialized");
+                return;
+            }
+            printer.selectStandardMode(call);
         }
-        printer.selectStandardMode(call);
     }
 
     @PluginMethod
     public void selectPageMode(PluginCall call) {
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
+        boolean isAddPayDevice = call.getBoolean("isAddPayDevice", false);
+
+        if (isAddPayDevice) {
+            call.reject("selectPageMode is not supported on AddPay devices");
+        } else {
+            if (printer == null) {
+                Log.e("DatecsPrinterPlugin", "Printer is not initialized");
+                call.reject("Printer is not initialized");
+                return;
+            }
+            printer.selectPageMode(call);
         }
-        printer.selectPageMode(call);
     }
 
     @PluginMethod
     public void printPage(PluginCall call) {
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
+        boolean isAddPayDevice = call.getBoolean("isAddPayDevice", false);
+
+        if (isAddPayDevice) {
+            call.reject("printPage is not supported on AddPay devices");
+        } else {
+            if (printer == null) {
+                Log.e("DatecsPrinterPlugin", "Printer is not initialized");
+                call.reject("Printer is not initialized");
+                return;
+            }
+            printer.printPage(call);
         }
-        printer.printPage(call);
     }
 
     @PluginMethod
     public void setPageRegion(PluginCall call) {
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
+        boolean isAddPayDevice = call.getBoolean("isAddPayDevice", false);
+
+        if (isAddPayDevice) {
+            call.reject("setPageRegion is not supported on AddPay devices");
+        } else {
+            if (printer == null) {
+                Log.e("DatecsPrinterPlugin", "Printer is not initialized");
+                call.reject("Printer is not initialized");
+                return;
+            }
+            int x = call.getInt("x", 0);
+            int y = call.getInt("y", 0);
+            int width = call.getInt("width", 0);
+            int height = call.getInt("height", 0);
+            int direction = call.getInt("direction", 0);
+            printer.setPageRegion(x, y, width, height, direction, call);
         }
-        int x = call.getInt("x", 0);
-        int y = call.getInt("y", 0);
-        int width = call.getInt("width", 0);
-        int height = call.getInt("height", 0);
-        int direction = call.getInt("direction", 0);
-        printer.setPageRegion(x, y, width, height, direction, call);
     }
 
     @PluginMethod
     public void printImage(PluginCall call) {
-        if (printer == null) {
-            Log.e("DatecsPrinterPlugin", "Printer is not initialized");
-            call.reject("Printer is not initialized");
-            return;
-        }
-        String image = call.getString("image");
-        int width = call.getInt("width", 0);
-        int height = call.getInt("height", 0);
-        int align = call.getInt("align", 0);
-        if (image != null) {
-            printer.printImage(image, width, height, align, call);
+        boolean isAddPayDevice = call.getBoolean("isAddPayDevice", false);
+
+        if (isAddPayDevice) {
+            try {
+                com.wisepos.smartpos.printer.Printer printer = WisePosSdk.getInstance().printer;
+                android.os.Bundle bundle = new android.os.Bundle();
+                // The AddPay SDK expects a bitmap, so we need to decode the base64 string
+                String imageString = call.getString("image");
+                if (imageString == null) {
+                    call.reject("Image data is required");
+                    return;
+                }
+                byte[] decodedString = android.util.Base64.decode(imageString, android.util.Base64.DEFAULT);
+                android.graphics.Bitmap decodedByte = android.graphics.BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+                bundle.putParcelable("bitmap", decodedByte);
+                printer.addPicture(bundle);
+                call.resolve();
+            } catch (Exception e) {
+                call.reject(e.getMessage());
+            }
         } else {
-            Log.e("DatecsPrinterPlugin", "Image data is required");
-            call.reject("Image data is required");
+            if (printer == null) {
+                Log.e("DatecsPrinterPlugin", "Printer is not initialized");
+                call.reject("Printer is not initialized");
+                return;
+            }
+            String image = call.getString("image");
+            int width = call.getInt("width", 0);
+            int height = call.getInt("height", 0);
+            int align = call.getInt("align", 0);
+            if (image != null) {
+                printer.printImage(image, width, height, align, call);
+            } else {
+                Log.e("DatecsPrinterPlugin", "Image data is required");
+                call.reject("Image data is required");
+            }
         }
     }
 
