@@ -5,7 +5,9 @@ import android.app.Application;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.content.Intent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
 import android.util.Log;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -156,8 +158,34 @@ public class DatecsSDKWrapper {
                 Log.d(LOG_TAG, "Devices found: " + json.toString());
                 call.resolve(result);
             } else {
-                Log.e(LOG_TAG, "No paired Bluetooth devices found");
-                call.reject(errorCode.get(2), "2");
+                Log.d(LOG_TAG, "No paired devices found, starting discovery for 'Inner Printer'");
+                final BroadcastReceiver receiver = new BroadcastReceiver() {
+                    @Override
+                    public void onReceive(Context context, Intent intent) {
+                        String action = intent.getAction();
+                        if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+                            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                            if (device != null && "Inner Printer".equals(device.getName())) {
+                                Log.d(LOG_TAG, "Found 'Inner Printer', attempting to pair");
+                                device.createBond();
+                                context.unregisterReceiver(this);
+                                // Re-call getBluetoothPairedDevices after attempting to pair
+                                getBluetoothPairedDevices(call);
+                            }
+                        } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
+                            Log.d(LOG_TAG, "Discovery finished");
+                            context.unregisterReceiver(this);
+                            // If the printer is still not found, reject the call
+                            if (mBluetoothAdapter.getBondedDevices().size() == 0) {
+                                call.reject(errorCode.get(2), "2");
+                            }
+                        }
+                    }
+                };
+                IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+                filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+                activity.registerReceiver(receiver, filter);
+                mBluetoothAdapter.startDiscovery();
             }
         } catch (SecurityException e) {
             Log.e(LOG_TAG, "Bluetooth permission error", e);
@@ -256,6 +284,9 @@ public class DatecsSDKWrapper {
                     mBluetoothSocket = createBluetoothSocket(device, uuid, call);
                     Thread.sleep(50);
                     mBluetoothSocket.connect();
+                    if (!mBluetoothSocket.isConnected()) {
+                        throw new IOException("Socket not connected");
+                    }
                     in = mBluetoothSocket.getInputStream();
                     out = mBluetoothSocket.getOutputStream();
                     Log.d(LOG_TAG, "Bluetooth socket connected");
@@ -265,6 +296,9 @@ public class DatecsSDKWrapper {
                         mBluetoothSocket = (BluetoothSocket) device.getClass().getMethod("createRfcommSocket", new Class[]{int.class}).invoke(device, 1);
                         Thread.sleep(50);
                         mBluetoothSocket.connect();
+                        if (!mBluetoothSocket.isConnected()) {
+                            throw new IOException("Socket not connected");
+                        }
                         in = mBluetoothSocket.getInputStream();
                         out = mBluetoothSocket.getOutputStream();
                         Log.d(LOG_TAG, "Fallback Bluetooth socket connected");
@@ -273,6 +307,10 @@ public class DatecsSDKWrapper {
                         call.reject(errorCode.get(18) + ": " + ex.getMessage(), "18");
                         return;
                     }
+                } catch (Exception e) {
+                    Log.e(LOG_TAG, "Connection error", e);
+                    call.reject(errorCode.get(18) + ": " + e.getMessage(), "18");
+                    return;
                 } catch (Exception e) {
                     Log.e(LOG_TAG, "Connection error", e);
                     call.reject(errorCode.get(18) + ": " + e.getMessage(), "18");
@@ -316,6 +354,11 @@ public class DatecsSDKWrapper {
             mPrinter = new Printer(mProtocolAdapter.getRawInputStream(), mProtocolAdapter.getRawOutputStream());
         }
 
+        if (mPrinter == null) {
+            call.reject(errorCode.get(20), "20");
+            return;
+        }
+
         mPrinter.setConnectionListener(new Printer.ConnectionListener() {
             @Override
             public void onDisconnect() {
@@ -357,8 +400,7 @@ public class DatecsSDKWrapper {
             return;
         }
         try {
-
-            mPrinter.printTaggedText(text, charset);
+            mPrinter.printTaggedText(text, charset != null ? charset : "UTF-8");
             mPrinter.flush();
             call.resolve();
         } catch (Exception e) {
