@@ -94,8 +94,8 @@ public class DatecsPrinterPlugin extends Plugin {
                 requestPermissionForAlias("bluetooth", call, "bluetoothPermissionCallback");
                 return;
             }
-            // Check location permissions for Android 11 and below
-            if (ContextCompat.checkSelfPermission(getContext(),
+            // Check location permissions for Android 9 and below
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P && ContextCompat.checkSelfPermission(getContext(),
                     Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 Log.d("DatecsPrinterPlugin", "Requesting location permission");
                 requestPermissionForAlias("location", call, "locationPermissionCallback");
@@ -125,8 +125,8 @@ public class DatecsPrinterPlugin extends Plugin {
                 call.reject("Legacy Bluetooth permissions not granted");
                 return;
             }
-            // Check location permissions for Android 11 and below
-            if (ContextCompat.checkSelfPermission(getContext(),
+            // Check location permissions for Android 9 and below
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P && ContextCompat.checkSelfPermission(getContext(),
                     Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 Log.d("DatecsPrinterPlugin", "Requesting location permission");
                 requestPermissionForAlias("location", call, "locationPermissionCallback");
@@ -139,7 +139,7 @@ public class DatecsPrinterPlugin extends Plugin {
 
     @PermissionCallback
     private void locationPermissionCallback(PluginCall call) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
             if (ContextCompat.checkSelfPermission(getContext(),
                     Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 Log.e("DatecsPrinterPlugin", "Location permissions not granted");
