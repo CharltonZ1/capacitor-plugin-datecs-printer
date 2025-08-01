@@ -1,7 +1,14 @@
 import { WebPlugin } from '@capacitor/core';
 import type { DatecsPrinterPlugin } from './definitions';
 export declare class DatecsPrinterWeb extends WebPlugin implements DatecsPrinterPlugin {
-    listBluetoothDevices(): Promise<void>;
+    listBluetoothDevices(): Promise<{
+        devices: {
+            name: string;
+            address: string;
+            aliasName: string;
+            type: number;
+        }[];
+    }>;
     connect(_options: {
         address: string;
     }): Promise<void>;
@@ -73,5 +80,4 @@ export declare class DatecsPrinterWeb extends WebPlugin implements DatecsPrinter
     writeHex(_options: {
         hex: string;
     }): Promise<void>;
-    stopDiscovery(): Promise<void>;
 }

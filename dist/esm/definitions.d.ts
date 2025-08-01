@@ -1,10 +1,15 @@
 import type { Plugin } from '@capacitor/core';
 export interface DatecsPrinterPlugin extends Plugin {
-    listBluetoothDevices(): Promise<void>;
-    stopDiscovery(): Promise<void>;
+    listBluetoothDevices(): Promise<{
+        devices: {
+            name: string;
+            address: string;
+            aliasName: string;
+            type: number;
+        }[];
+    }>;
     connect(options: {
         address: string;
-        isAddPayDevice?: boolean;
     }): Promise<void>;
     disconnect(): Promise<void>;
     feedPaper(options: {
@@ -12,8 +17,7 @@ export interface DatecsPrinterPlugin extends Plugin {
     }): Promise<void>;
     printText(options: {
         text: string;
-        charset?: string;
-        isAddPayDevice?: boolean;
+        charset: string;
     }): Promise<void>;
     printSelfTest(): Promise<void>;
     getStatus(): Promise<{
