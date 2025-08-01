@@ -297,23 +297,32 @@ public class Printer {
             percent1 = 85;
         } else if (voltage == 78) {
             percent1 = 78;
-        } else if (voltage == 77) {
+        }
+        else if (voltage == 77) {
             percent1 = 72;
-        } else if (voltage == 76) {
+        }
+        else if (voltage == 76) {
             percent1 = 62;
-        } else if (voltage == 75) {
+        }
+        else if (voltage == 75) {
             percent1 = 50;
-        } else if (voltage == 74) {
+        }
+        else if (voltage == 74) {
             percent1 = 30;
-        } else if (voltage == 73) {
+        }
+        else if (voltage == 73) {
             percent1 = 20;
-        } else if (voltage == 72) {
+        }
+        else if (voltage == 72) {
             percent1 = 15;
-        } else if (voltage == 71) {
+        }
+        else if (voltage == 71) {
             percent1 = 8;
-        } else if (voltage == 70) {
+        }
+        else if (voltage == 70) {
             percent1 = 2;
-        } else {
+        }
+        else {
             percent1 = 0;
         }
 
@@ -523,7 +532,8 @@ public class Printer {
             synchronized (this) {
                 this.write(buf);
             }
-        } else {
+        }
+        else {
             throw new IllegalArgumentException("The lines is out of range");
         }
     }
@@ -571,8 +581,7 @@ public class Printer {
         }
     }
 
-    // This method resets the printer state (spacing, alignment, etc.) before
-    // printing the text.
+    // This method resets the printer state (spacing, alignment, etc.) before printing the text.
     private void printTaggedText(byte[] b) throws IOException {
         boolean LEN = true;
         boolean ELE = true;
@@ -635,8 +644,7 @@ public class Printer {
 
                     // Log the tag being processed
                     // String tag = new String(tbuf, index, hashlen, StandardCharsets.ISO_8859_1);
-                    // Log.d("PrintDebug", "Processing tag: " + tag + ", hash: " + tmp + ", set: " +
-                    // set);
+                    // Log.d("PrintDebug", "Processing tag: " + tag + ", hash: " + tmp + ", set: " + set);
 
                     if (tmp == BREAK) {
                         var32 = pos - 1;
