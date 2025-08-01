@@ -3,19 +3,13 @@ package za.co.infinityrewards.plugins.datecsprinter;
 import android.app.Activity;
 import android.app.Application;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.util.Log;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Base64;
-
-import androidx.annotation.NonNull;
 
 import com.datecs.api.printer.ProtocolAdapter;
 import com.getcapacitor.PluginCall;
@@ -41,13 +35,12 @@ public class DatecsSDKWrapper {
     private String mAddress;
     private PluginCall mConnectCallback;
     private final Application app;
-    private final Activity activity;
+    private Activity activity;
 
     private final ProtocolAdapter.PrinterListener mChannelListener = new ProtocolAdapter.PrinterListener() {
         @Override
         public void onPaperStateChanged(boolean hasNoPaper) {
-            showToast(hasNoPaper ? DatecsUtil.getStringFromStringResource(app, "no_paper")
-                    : DatecsUtil.getStringFromStringResource(app, "paper_ok"));
+            showToast(hasNoPaper ? DatecsUtil.getStringFromStringResource(app, "no_paper") : DatecsUtil.getStringFromStringResource(app, "paper_ok"));
         }
 
         @Override
@@ -64,7 +57,7 @@ public class DatecsSDKWrapper {
         }
     };
 
-    private final Map<Integer, String> errorCode = new HashMap<>();
+    private Map<Integer, String> errorCode = new HashMap<>();
 
     public DatecsSDKWrapper(Activity activity) {
         this.activity = activity;
@@ -125,19 +118,18 @@ public class DatecsSDKWrapper {
                 Log.d(LOG_TAG, "Bluetooth not enabled, requesting enable");
                 Intent enableBluetooth = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                 activity.startActivityForResult(enableBluetooth, 0);
-                call.reject("Bluetooth not enabled");
-                return;
             }
             Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
-            Log.d(LOG_TAG, "Found " + pairedDevices.size() + " paired devices");
-            if (!pairedDevices.isEmpty()) {
+            if (pairedDevices.size() > 0) {
                 JSONArray json = new JSONArray();
                 for (BluetoothDevice device : pairedDevices) {
                     Hashtable map = new Hashtable();
                     int deviceType = 0;
                     try {
                         java.lang.reflect.Method method = device.getClass().getMethod("getType");
-                        deviceType = (Integer) method.invoke(device);
+                        if (method != null) {
+                            deviceType = (Integer) method.invoke(device);
+                        }
                     } catch (Exception e) {
                         Log.e(LOG_TAG, "Error getting device type", e);
                     }
@@ -147,7 +139,7 @@ public class DatecsSDKWrapper {
                     map.put("name", device.getName() != null ? device.getName() : "Unknown");
                     String deviceAlias = device.getName();
                     try {
-                        java.lang.reflect.Method method = device.getClass().getMethod("getName");
+                        java.lang.reflect.Method method = device.getClass().getMethod("getAliasName");
                         if (method != null) {
                             deviceAlias = (String) method.invoke(device);
                         }
@@ -164,61 +156,16 @@ public class DatecsSDKWrapper {
                 Log.d(LOG_TAG, "Devices found: " + json.toString());
                 call.resolve(result);
             } else {
-                Log.d(LOG_TAG, "No paired devices found, starting discovery");
-                final BroadcastReceiver receiver = getBroadcastReceiver(call, mBluetoothAdapter);
-                IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-                filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
-                activity.registerReceiver(receiver, filter);
-                mBluetoothAdapter.startDiscovery();
+                Log.e(LOG_TAG, "No paired Bluetooth devices found");
+                call.reject(errorCode.get(2), "2");
             }
         } catch (SecurityException e) {
             Log.e(LOG_TAG, "Bluetooth permission error", e);
             call.reject("Bluetooth permission not granted");
+        } catch (Exception e) {
+            Log.e(LOG_TAG, "Error listing devices", e);
+            call.reject(e.getMessage());
         }
-    }
-
-    @NonNull
-    private BroadcastReceiver getBroadcastReceiver(PluginCall call, BluetoothAdapter mBluetoothAdapter) {
-        // Re-call getBluetoothPairedDevices after attempting to pair
-        // Fallback to name check
-        // Re-call getBluetoothPairedDevices after attempting to pair
-        // If the printer is still not found, reject the call
-        return new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                String action = intent.getAction();
-                if (BluetoothDevice.ACTION_FOUND.equals(action)) {
-                    BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                    if (device != null) {
-                        BluetoothClass bluetoothClass = device.getBluetoothClass();
-                        Log.d(LOG_TAG + "device", "Found device: " + device.getName() + " (" + device.getAddress() + ")"
-                                + " with class: " + bluetoothClass.toString());
-                        if (bluetoothClass.getMajorDeviceClass() == BluetoothClass.Device.Major.IMAGING
-                                && bluetoothClass.getDeviceClass() == 0x680) {
-                            Log.d(LOG_TAG, "Found a printer, attempting to pair");
-                            device.createBond();
-                            context.unregisterReceiver(this);
-                            // Re-call getBluetoothPaired
-                            // Devices after attempting to pair
-                            getBluetoothPairedDevices(call);
-                        } else if (device.getName().toLowerCase().contains("print")) { // Fallback to name check
-                            Log.d(LOG_TAG, "Found 'Inner Printer' by name, attempting to pair");
-                            device.createBond();
-                            context.unregisterReceiver(this);
-                            // Re-call getBluetoothPairedDevices after attempting to pair
-                            getBluetoothPairedDevices(call);
-                        }
-                    }
-                } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-                    Log.d(LOG_TAG, "Discovery finished");
-                    context.unregisterReceiver(this);
-                    // If the printer is still not found, reject the call
-                    if (mBluetoothAdapter.getBondedDevices().isEmpty()) {
-                        call.reject(errorCode.get(2), "2");
-                    }
-                }
-            }
-        };
     }
 
     public void setAddress(String address) {
@@ -309,22 +256,15 @@ public class DatecsSDKWrapper {
                     mBluetoothSocket = createBluetoothSocket(device, uuid, call);
                     Thread.sleep(50);
                     mBluetoothSocket.connect();
-                    if (!mBluetoothSocket.isConnected()) {
-                        throw new IOException("Socket not connected");
-                    }
                     in = mBluetoothSocket.getInputStream();
                     out = mBluetoothSocket.getOutputStream();
                     Log.d(LOG_TAG, "Bluetooth socket connected");
                 } catch (IOException e) {
                     Log.e(LOG_TAG, "Primary connection failed, trying fallback", e);
                     try {
-                        mBluetoothSocket = (BluetoothSocket) device.getClass()
-                                .getMethod("createRfcommSocket", new Class[] { int.class }).invoke(device, 1);
+                        mBluetoothSocket = (BluetoothSocket) device.getClass().getMethod("createRfcommSocket", new Class[]{int.class}).invoke(device, 1);
                         Thread.sleep(50);
                         mBluetoothSocket.connect();
-                        if (!mBluetoothSocket.isConnected()) {
-                            throw new IOException("Socket not connected");
-                        }
                         in = mBluetoothSocket.getInputStream();
                         out = mBluetoothSocket.getOutputStream();
                         Log.d(LOG_TAG, "Fallback Bluetooth socket connected");
@@ -338,6 +278,7 @@ public class DatecsSDKWrapper {
                     call.reject(errorCode.get(18) + ": " + e.getMessage(), "18");
                     return;
                 }
+
                 try {
                     initializePrinter(in, out, call);
                     showToast(DatecsUtil.getStringFromStringResource(app, "printer_connected"));
@@ -347,15 +288,12 @@ public class DatecsSDKWrapper {
                     call.reject(errorCode.get(20) + ": " + e.getMessage(), "20");
                 }
             }
-        }, DatecsUtil.getStringFromStringResource(app, "printer"),
-                DatecsUtil.getStringFromStringResource(app, "connecting"));
+        }, DatecsUtil.getStringFromStringResource(app, "printer"), DatecsUtil.getStringFromStringResource(app, "connecting"));
     }
 
-    private BluetoothSocket createBluetoothSocket(BluetoothDevice device, UUID uuid, final PluginCall call)
-            throws IOException {
+    private BluetoothSocket createBluetoothSocket(BluetoothDevice device, UUID uuid, final PluginCall call) throws IOException {
         try {
-            java.lang.reflect.Method method = device.getClass().getMethod("createRfcommSocketToServiceRecord",
-                    new Class[] { UUID.class });
+            java.lang.reflect.Method method = device.getClass().getMethod("createRfcommSocketToServiceRecord", new Class[]{UUID.class});
             return (BluetoothSocket) method.invoke(device, uuid);
         } catch (Exception e) {
             Log.e(LOG_TAG, "Error creating Bluetooth socket", e);
@@ -365,8 +303,7 @@ public class DatecsSDKWrapper {
         return device.createRfcommSocketToServiceRecord(uuid);
     }
 
-    protected void initializePrinter(InputStream inputStream, OutputStream outputStream, PluginCall call)
-            throws IOException {
+    protected void initializePrinter(InputStream inputStream, OutputStream outputStream, PluginCall call) throws IOException {
         Log.d(LOG_TAG, "Initializing printer...");
         mProtocolAdapter = new ProtocolAdapter(inputStream, outputStream);
         if (mProtocolAdapter.isProtocolEnabled()) {
@@ -420,7 +357,8 @@ public class DatecsSDKWrapper {
             return;
         }
         try {
-            mPrinter.printTaggedText(text, charset != null ? charset : "UTF-8");
+
+            mPrinter.printTaggedText(text, charset);
             mPrinter.flush();
             call.resolve();
         } catch (Exception e) {
