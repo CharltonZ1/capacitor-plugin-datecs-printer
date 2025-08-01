@@ -11,7 +11,8 @@ class DatecsPrinterWeb extends core.WebPlugin {
     //   return { supported: false };
     // }
     async listBluetoothDevices() {
-        throw this.unimplemented('Not supported on web.');
+        console.log('listBluetoothDevices');
+        return Promise.resolve();
     }
     async connect(_options) {
         throw this.unimplemented('Not supported on web.');
@@ -68,6 +69,9 @@ class DatecsPrinterWeb extends core.WebPlugin {
         throw this.unimplemented('Not supported on web.');
     }
     async writeHex(_options) {
+        throw this.unimplemented('Not supported on web.');
+    }
+    async stopDiscovery() {
         throw this.unimplemented('Not supported on web.');
     }
 }
