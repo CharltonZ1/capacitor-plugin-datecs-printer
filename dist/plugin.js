@@ -10,8 +10,7 @@ var capacitorDatecsPrinter = (function (exports, core) {
         //   return { supported: false };
         // }
         async listBluetoothDevices() {
-            console.log('listBluetoothDevices');
-            return Promise.resolve();
+            throw this.unimplemented('Not supported on web.');
         }
         async connect(_options) {
             throw this.unimplemented('Not supported on web.');
@@ -68,9 +67,6 @@ var capacitorDatecsPrinter = (function (exports, core) {
             throw this.unimplemented('Not supported on web.');
         }
         async writeHex(_options) {
-            throw this.unimplemented('Not supported on web.');
-        }
-        async stopDiscovery() {
             throw this.unimplemented('Not supported on web.');
         }
     }

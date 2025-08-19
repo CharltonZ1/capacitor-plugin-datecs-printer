@@ -7,32 +7,22 @@
     "methods": [
       {
         "name": "listBluetoothDevices",
-        "signature": "() => Promise<void>",
+        "signature": "() => Promise<{ devices: { name: string; address: string; aliasName: string; type: number; }[]; }>",
         "parameters": [],
-        "returns": "Promise<void>",
+        "returns": "Promise<{ devices: { name: string; address: string; aliasName: string; type: number; }[]; }>",
         "tags": [],
         "docs": "",
         "complexTypes": [],
         "slug": "listbluetoothdevices"
       },
       {
-        "name": "stopDiscovery",
-        "signature": "() => Promise<void>",
-        "parameters": [],
-        "returns": "Promise<void>",
-        "tags": [],
-        "docs": "",
-        "complexTypes": [],
-        "slug": "stopdiscovery"
-      },
-      {
         "name": "connect",
-        "signature": "(options: { address: string; isAddPayDevice?: boolean; }) => Promise<void>",
+        "signature": "(options: { address: string; }) => Promise<void>",
         "parameters": [
           {
             "name": "options",
             "docs": "",
-            "type": "{ address: string; isAddPayDevice?: boolean | undefined; }"
+            "type": "{ address: string; }"
           }
         ],
         "returns": "Promise<void>",
@@ -69,12 +59,12 @@
       },
       {
         "name": "printText",
-        "signature": "(options: { text: string; charset?: string; isAddPayDevice?: boolean; }) => Promise<void>",
+        "signature": "(options: { text: string; charset: string; }) => Promise<void>",
         "parameters": [
           {
             "name": "options",
             "docs": "",
-            "type": "{ text: string; charset?: string | undefined; isAddPayDevice?: boolean | undefined; }"
+            "type": "{ text: string; charset: string; }"
           }
         ],
         "returns": "Promise<void>",

@@ -14,7 +14,6 @@ npx cap sync
 <docgen-index>
 
 * [`listBluetoothDevices()`](#listbluetoothdevices)
-* [`stopDiscovery()`](#stopdiscovery)
 * [`connect(...)`](#connect)
 * [`disconnect()`](#disconnect)
 * [`feedPaper(...)`](#feedpaper)
@@ -43,17 +42,10 @@ npx cap sync
 ### listBluetoothDevices()
 
 ```typescript
-listBluetoothDevices() => Promise<void>
+listBluetoothDevices() => Promise<{ devices: { name: string; address: string; aliasName: string; type: number; }[]; }>
 ```
 
---------------------
-
-
-### stopDiscovery()
-
-```typescript
-stopDiscovery() => Promise<void>
-```
+**Returns:** <code>Promise&lt;{ devices: { name: string; address: string; aliasName: string; type: number; }[]; }&gt;</code>
 
 --------------------
 
@@ -61,12 +53,12 @@ stopDiscovery() => Promise<void>
 ### connect(...)
 
 ```typescript
-connect(options: { address: string; isAddPayDevice?: boolean; }) => Promise<void>
+connect(options: { address: string; }) => Promise<void>
 ```
 
-| Param         | Type                                                        |
-| ------------- | ----------------------------------------------------------- |
-| **`options`** | <code>{ address: string; isAddPayDevice?: boolean; }</code> |
+| Param         | Type                              |
+| ------------- | --------------------------------- |
+| **`options`** | <code>{ address: string; }</code> |
 
 --------------------
 
@@ -96,12 +88,12 @@ feedPaper(options: { lines: number; }) => Promise<void>
 ### printText(...)
 
 ```typescript
-printText(options: { text: string; charset?: string; isAddPayDevice?: boolean; }) => Promise<void>
+printText(options: { text: string; charset: string; }) => Promise<void>
 ```
 
-| Param         | Type                                                                       |
-| ------------- | -------------------------------------------------------------------------- |
-| **`options`** | <code>{ text: string; charset?: string; isAddPayDevice?: boolean; }</code> |
+| Param         | Type                                            |
+| ------------- | ----------------------------------------------- |
+| **`options`** | <code>{ text: string; charset: string; }</code> |
 
 --------------------
 
