@@ -3,14 +3,13 @@ import { WebPlugin } from '@capacitor/core';
 import type { DatecsPrinterPlugin } from './definitions';
 
 export class DatecsPrinterWeb extends WebPlugin implements DatecsPrinterPlugin {
-
+  
   // async isSupported(): Promise<{ supported: boolean }> {
   //   return { supported: false };
   // }
 
-  async listBluetoothDevices(): Promise<void> {
-    console.log('listBluetoothDevices');
-    return Promise.resolve();
+  async listBluetoothDevices(): Promise<{ devices: { name: string; address: string; aliasName: string; type: number }[] }> {
+    throw this.unimplemented('Not supported on web.');
   }
 
   async connect(_options: { address: string }): Promise<void> {
@@ -88,9 +87,4 @@ export class DatecsPrinterWeb extends WebPlugin implements DatecsPrinterPlugin {
   async writeHex(_options: { hex: string }): Promise<void> {
     throw this.unimplemented('Not supported on web.');
   }
-
-  async stopDiscovery(): Promise<void> {
-    throw this.unimplemented('Not supported on web.');
-  }
-
 }
